@@ -1,3 +1,11 @@
 openai
 llama-index
 numpy
+cohere
+tiktoken
+chromadb
+kaleido
+python-multipart
+html2text
+sentence_transformers
+ipykernel
