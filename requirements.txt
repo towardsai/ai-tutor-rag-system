@@ -10,3 +10,8 @@ python-multipart
 html2text
 sentence_transformers
 ipykernel
+gradio
+instructor
+pydantic
+pyarrow
+pymongo
