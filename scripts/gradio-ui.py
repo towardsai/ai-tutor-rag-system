@@ -6,6 +6,8 @@ from datetime import datetime
 import chromadb
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import VectorStoreIndex
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 import gradio as gr
 from gradio.themes.utils import (
     fonts,
@@ -51,12 +53,16 @@ mongo_db = (
     else logger.warning("No mongodb uri found, you will not be able to save data.")
 )
 
-# Initialize ChromaDB
+# Initialize vector store and index
 db2 = chromadb.PersistentClient(path="scripts/ai-tutor-db")
 chroma_collection = db2.get_or_create_collection("ai-tutor-db")
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
-query_engine = index.as_query_engine()
+
+# Initialize query engine
+llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
+embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
+query_engine = index.as_query_engine(llm=llm, similarity_top_k=5, embed_model=embeds)
 
 
 AVAILABLE_SOURCES_UI = [
@@ -148,7 +154,7 @@ def format_sources(completion) -> str:
         "📝 Here are the sources I used to answer your question:\n\n{documents}\n\n{footnote}"
     )
     document_template: str = (
-        "[🔗 {source}: {title}]({url}), relevance: {score:2.1f} %"  # Adjusted to include URL and format score as relevance
+        "[🔗 {source}: {title}]({url}), relevance: {score:2.1f}"  # Adjusted to include URL and format score as relevance
     )
 
     documents = "\n".join(
@@ -157,7 +163,7 @@ def format_sources(completion) -> str:
                 title=src.metadata["title"],
                 score=src.score,
                 source=display_source_to_ui.get(
-                    src.metadata["source_name"], src.metadata["source_name"]
+                    src.metadata["source"], src.metadata["source"]
                 ),
                 url=src.metadata["url"],
             )
