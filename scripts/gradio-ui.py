@@ -19,6 +19,7 @@ from gradio.themes.utils import (
 )
 
 from utils import init_mongo_db
+from cfg import TEXT_QA_TEMPLATE
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -67,9 +68,6 @@ index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 # Initialize query engine
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
 embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
-# query_engine = index.as_query_engine(
-#     llm=llm, similarity_top_k=5, embed_model=embeds, streaming=True
-# )
 
 
 def save_completion(completion, history):
@@ -200,6 +198,7 @@ def get_answer(history, sources: Optional[list[str]] = None):
         embed_model=embeds,
         streaming=True,
         filters=filters,
+        text_qa_template=TEXT_QA_TEMPLATE,
     )
     completion = query_engine.query(user_input)
 
