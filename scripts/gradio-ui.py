@@ -62,7 +62,9 @@ index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 # Initialize query engine
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
 embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
-query_engine = index.as_query_engine(llm=llm, similarity_top_k=5, embed_model=embeds)
+query_engine = index.as_query_engine(
+    llm=llm, similarity_top_k=5, embed_model=embeds, streaming=True
+)
 
 
 AVAILABLE_SOURCES_UI = [
@@ -194,9 +196,9 @@ def get_answer(history, sources: Optional[list[str]] = None):
     completion = query_engine.query(user_input)
 
     history[-1][1] = ""
-
-    history[-1][1] += completion.response
-    yield history, completion
+    for token in completion.response_gen:
+        history[-1][1] += token
+        yield history, completion
 
 
 example_questions = [
