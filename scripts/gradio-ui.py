@@ -156,7 +156,7 @@ def format_sources(completion) -> str:
         "📝 Here are the sources I used to answer your question:\n\n{documents}\n\n{footnote}"
     )
     document_template: str = (
-        "[🔗 {source}: {title}]({url}), relevance: {score:2.1f}"  # Adjusted to include URL and format score as relevance
+        "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"  # Adjusted to include URL and format score as relevance
     )
 
     documents = "\n".join(
@@ -218,20 +218,16 @@ with gr.Blocks(
     fill_height=True,
 ) as demo:
     with gr.Row():
-        gr.Markdown(
+        gr.HTML(
             "<h3><center>Towards AI 🤖: A Question-Answering Bot for anything AI-related</center></h3>"
         )
 
     latest_completion = gr.State()
 
-    source_selection = gr.Dropdown(
-        choices=AVAILABLE_SOURCES_UI,
-        label="Select Sources",
-        value=AVAILABLE_SOURCES_UI,
-        multiselect=True,
+    chatbot = gr.Chatbot(
+        elem_id="chatbot", show_copy_button=True, scale=2, likeable=True
     )
 
-    chatbot = gr.Chatbot(elem_id="chatbot", show_copy_button=True, scale=2)
     with gr.Row():
         question = gr.Textbox(
             label="What's your question?",
@@ -261,14 +257,14 @@ with gr.Blocks(
     completion = gr.State()
 
     submit.click(user, [question, chatbot], [question, chatbot], queue=False).then(
-        get_answer, inputs=[chatbot, source_selection], outputs=[chatbot, completion]
+        get_answer, inputs=[chatbot], outputs=[chatbot, completion]
     ).then(add_sources, inputs=[chatbot, completion], outputs=[chatbot])
     # .then(
     # save_completion, inputs=[completion, chatbot]
     # )
 
     question.submit(user, [question, chatbot], [question, chatbot], queue=False).then(
-        get_answer, inputs=[chatbot, source_selection], outputs=[chatbot, completion]
+        get_answer, inputs=[chatbot], outputs=[chatbot, completion]
     ).then(add_sources, inputs=[chatbot, completion], outputs=[chatbot])
     # .then(
     #     save_completion, inputs=[completion, chatbot]
