@@ -161,3 +161,4 @@ cython_debug/
 #.idea/
 
 notebooks/mini-llama-articles/
+.vscode/
