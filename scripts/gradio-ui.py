@@ -65,7 +65,7 @@ chroma_collection = db2.get_or_create_collection("ai-tutor-db")
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-# Initialize query engine
+# Initialize OpenAI models
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
 embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
 
@@ -284,9 +284,8 @@ with gr.Blocks(
     # )
 
     chatbot.like(log_likes, completion)
-
     submit_email.click(log_emails, email, email)
     email.submit(log_emails, email, email)
 
-demo.queue()
-demo.launch(debug=True, share=False)
+demo.queue(default_concurrency_limit=CONCURRENCY_COUNT)
+demo.launch(debug=False, share=False)
