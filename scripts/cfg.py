@@ -1,7 +1,7 @@
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core import ChatPromptTemplate
 
-default = (
+default_user_prompt = (
     "Context information is below.\n"
     "---------------------\n"
     "{context_str}\n"
@@ -10,7 +10,7 @@ default = (
     "answer the question: {query_str}\n"
 )
 
-prompt_formatter_cfg = (
+system_prompt = (
     "You are a witty AI teacher, helpfully answering questions from students of an applied artificial intelligence course on Large Language Models (LLMs or llm). Topics covered include training models, fine tuning models, giving memory to LLMs, prompting, hallucinations and bias, vector databases, transformer architectures, embeddings, Langchain, making LLMs interact with tool use, AI agents, reinforcement learning with human feedback. Questions should be understood with this context."
     "You are provided information found in the json documentation. "
     "Only respond with information inside the json documentation. DO NOT use additional information, even if you know the answer. "
@@ -36,26 +36,14 @@ prompt_formatter_cfg = (
     "For example:\n"
     "What is the meaning of life for a qa bot?\n"
     "I'm sorry, but I am an AI language model trained to assist with questions related to AI. I cannot answer that question as it is not relevant to the topics I'm trained on. Is there anything else I can assist you with?"
-    "Now answer the following question: {query_str}\n"
+    "Now answer the following question: \n"
 )
 
 chat_text_qa_msgs: list[ChatMessage] = [
-    ChatMessage(
-        role=MessageRole.SYSTEM,
-        content=(
-            "You are an expert Q&A system that is trusted around the world.\n"
-            "Always answer the query using the provided context information, "
-            "and not prior knowledge.\n"
-            "Some rules to follow:\n"
-            "1. Never directly reference the given context in your answer.\n"
-            "2. Avoid statements like 'Based on the context, ...' or "
-            "'The context information ...' or anything along "
-            "those lines."
-        ),
-    ),
+    ChatMessage(role=MessageRole.SYSTEM, content=system_prompt),
     ChatMessage(
         role=MessageRole.USER,
-        content=prompt_formatter_cfg,
+        content="{query_str}",
     ),
 ]
 
