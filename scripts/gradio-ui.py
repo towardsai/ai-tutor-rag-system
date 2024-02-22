@@ -19,7 +19,7 @@ from gradio.themes.utils import (
 )
 
 from utils import init_mongo_db
-from scripts.tutor_prompts import (
+from tutor_prompts import (
     TEXT_QA_TEMPLATE,
     QueryValidation,
     system_message_validation,
@@ -192,6 +192,8 @@ def get_answer(history, sources: Optional[list[str]] = None):
         stream=False,
         model="gpt-3.5-turbo-0125",
     )
+    logger.info(f"response_validation: {response_validation.model_dump_json(indent=2)}")
+
     if response_validation.is_valid is False:
         history[-1][
             1
