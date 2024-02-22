@@ -3,8 +3,9 @@ import os
 from openai import OpenAI
 
 # Retrieve your OpenAI API key from the environment variables and activate the OpenAI client
-openai_api_key = os.environ.get('OPENAI_API_KEY')
+openai_api_key = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
+
 
 def ask_ai_tutor(question):
 
@@ -25,18 +26,19 @@ def ask_ai_tutor(question):
 
         # Call the OpenAI API
         response = client.chat.completions.create(
-                model='gpt-3.5-turbo-16k',
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-        
+            model="gpt-3.5-turbo-0125",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        )
+
         # Return the AI's response
         return response.choices[0].message.content.strip()
 
     except Exception as e:
         return f"An error occurred: {e}"
+
 
 def main():
     # Check if a question was provided as a command-line argument
@@ -46,12 +48,13 @@ def main():
 
     # The user's question is the first command-line argument
     user_question = sys.argv[1]
-    
+
     # Get the AI's response
     ai_response = ask_ai_tutor(user_question)
-    
+
     # Print the AI's response
     print(f"AI Tutor says: {ai_response}")
+
 
 if __name__ == "__main__":
     main()
