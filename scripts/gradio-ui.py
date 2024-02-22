@@ -19,7 +19,12 @@ from gradio.themes.utils import (
 )
 
 from utils import init_mongo_db
-from cfg import TEXT_QA_TEMPLATE
+from scripts.tutor_prompts import (
+    TEXT_QA_TEMPLATE,
+    QueryValidation,
+    system_message_validation,
+)
+from call_openai import api_function_call
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -156,7 +161,8 @@ def format_sources(completion) -> str:
 
 
 def add_sources(history, completion):
-    if history[-1][1] == "No sources selected. Please select sources to search.":
+    # if history[-1][1] == "No sources selected. Please select sources to search.":
+    if completion is None:
         return history
 
     formatted_sources = format_sources(completion)
@@ -176,7 +182,21 @@ def get_answer(history, sources: Optional[list[str]] = None):
 
     if len(sources) == 0:
         history[-1][1] = "No sources selected. Please select sources to search."
-        yield history, "No sources selected. Please select sources to search."
+        yield history, None
+        return
+
+    response_validation, error = api_function_call(
+        system_message=system_message_validation,
+        query=user_input,
+        response_model=QueryValidation,
+        stream=False,
+        model="gpt-3.5-turbo-0125",
+    )
+    if response_validation.is_valid is False:
+        history[-1][
+            1
+        ] = "I'm sorry, but I am a chatbot designed to assist you with questions related to AI. I cannot answer that question as it is outside my expertise. Is there anything else I can assist you with?"
+        yield history, None
         return
 
     # Dynamically create filters list

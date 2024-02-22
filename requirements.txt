@@ -1,6 +1,7 @@
 openai
 llama-index
 llama-index-vector-stores-chroma
+pydantic
 numpy
 cohere
 tiktoken

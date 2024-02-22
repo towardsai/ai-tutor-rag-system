@@ -1,5 +1,6 @@
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 default_user_prompt = (
     "Context information is below.\n"
@@ -32,10 +33,10 @@ system_prompt = (
     "* Do not reference any links, urls or hyperlinks in your answers.\n"
     "* Make sure to format your answers in Markdown format, including code block and snippets.\n"
     "* If you do not know the answer to a question, or if it is completely irrelevant to the AI courses, simply reply with:\n"
-    "'I'm sorry, but I am an AI language model trained to assist with questions related to AI. I cannot answer that question as it is not relevant to the topics I'm trained on. Is there anything else I can assist you with?'"
+    "'I'm sorry, but I couldn't find the information that answers you question. Is there anything else I can assist you with?'"
     "For example:\n"
     "What is the meaning of life for a qa bot?\n"
-    "I'm sorry, but I am an AI language model trained to assist with questions related to AI. I cannot answer that question as it is not relevant to the topics I'm trained on. Is there anything else I can assist you with?"
+    "I'm sorry, but I couldn't find the information that answers you question. Is there anything else I can assist you with?"
     "Now answer the following question: \n"
 )
 
@@ -48,3 +49,30 @@ chat_text_qa_msgs: list[ChatMessage] = [
 ]
 
 TEXT_QA_TEMPLATE = ChatPromptTemplate(chat_text_qa_msgs)
+
+
+system_message_validation = """You are a witty AI teacher, helpfully answering questions from students studying the field of applied artificial intelligence.
+Your job is to determine whether user's question is valid or not. Users will not always submit a question either.
+Users will ask all sorts of questions, and some might be tangentially related to artificial intelligence (AI), machine learning (ML), natural language processing (NLP), computer vision (CV) or generative AI.
+Users can ask how to build LLM-powered apps, with LangChain, LlamaIndex, Deep Lake, Chroma DB among other technologies including OpenAI, RAG and more.
+As long as a question is somewhat related to the topic of AI, ML, NLP, RAG, data and techniques used in AI like vector embeddings, memories, embeddings, tokenization, encoding, databases, RAG (Retrieval-Augmented Generation), Langchain, LlamaIndex, LLMs (Large Language Models), Preprocessing techniques, Document loading, Chunking, Indexing of document segments, Embedding models, Chains, Memory modules, Vector stores, Chat models, Sequential chains, Information Retrieval, Data connectors, LlamaHub, Node objects, Query engines, Fine-tuning, Activeloop’s Deep Memory, Prompt engineering, Synthetic training dataset, Inference, Recall rates, Query construction, Query expansion, Query transformation, Re-ranking, Cohere Reranker, Recursive retrieval, Small-to-big retrieval, Hybrid searches, Hit Rate, Mean Reciprocal Rank (MRR), GPT-4, Agents, OpenGPTs, Zero-shot ReAct, Conversational Agent, OpenAI Assistants API, Hugging Face Inference API, Code Interpreter, Knowledge Retrieval, Function Calling, Whisper, Dall-E 3, GPT-4 Vision, Unstructured, Deep Lake, FaithfulnessEvaluator, RAGAS, LangSmith, LangChain Hub, LangServe, REST API, respond 'true'. If a question is on a different subject or unrelated, respond 'false'.
+Make sure the question is a valid question.
+Here is a list of acronyms and concepts related to Artificial Intelligence AI that you can accept from users, they can be uppercase or lowercase:
+[TQL, Deep Memory, LLM, Llama, llamaindex, llama-index, lang chain, langchain, llama index, GPT, NLP, RLHF, RLAIF, Mistral, SFT, Cohere, NanoGPT, ReAct, LoRA, QLoRA, LMMOps, Alpaca, Flan, Weights and Biases, W&B, IDEFICS, Flamingo, LLaVA, BLIP, Falcon]
+"""
+
+
+class QueryValidation(BaseModel):
+    """
+    Validate the user query. Ensure the query is for an AI tutor, related the field of artificial intelligence in a broad sense.
+    """
+
+    chain_of_thought: str = Field(
+        description="Is the user query related to AI or for an AI Tutor? Think step-by-step. Write down your chain of thought here.",
+    )
+    is_valid: bool = Field(
+        description="Based on the previous reasoning, answer with True if the query is related to AI. Answer False otherwise.",
+    )
+    reason: str = Field(
+        description="Explain why the query was valid or not. What are the keywords that make it valid or invalid?",
+    )
