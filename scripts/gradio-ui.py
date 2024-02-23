@@ -138,9 +138,7 @@ def format_sources(completion) -> str:
     documents_answer_template: str = (
         "📝 Here are the sources I used to answer your question:\n\n{documents}\n\n{footnote}"
     )
-    document_template: str = (
-        "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"  # Adjusted to include URL and format score as relevance
-    )
+    document_template: str = "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"
 
     documents = "\n".join(
         [
@@ -161,7 +159,6 @@ def format_sources(completion) -> str:
 
 
 def add_sources(history, completion):
-    # if history[-1][1] == "No sources selected. Please select sources to search.":
     if completion is None:
         return history
 
