@@ -4,6 +4,8 @@ from typing import Optional
 from datetime import datetime
 
 import chromadb
+from llama_index.core.tools import QueryEngineTool, FunctionTool, ToolMetadata
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import VectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
@@ -23,12 +25,19 @@ from tutor_prompts import (
     TEXT_QA_TEMPLATE,
     QueryValidation,
     system_message_validation,
+    system_message_openai_agent,
 )
 from call_openai import api_function_call
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# This variables are used to intercept API calls
+# launch mitmweb
+cert_file = "/Users/omar/Downloads/mitmproxy-ca-cert.pem"
+os.environ["REQUESTS_CA_BUNDLE"] = cert_file
+os.environ["SSL_CERT_FILE"] = cert_file
+os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
 
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -72,43 +81,41 @@ index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
 # Initialize OpenAI models
 llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
-embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
+# embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
+embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="similarity")
 
+query_engine = index.as_query_engine(
+    llm=llm,
+    similarity_top_k=5,
+    embed_model=embeds,
+    streaming=True,
+    text_qa_template=TEXT_QA_TEMPLATE,
+)
 
-def save_completion(completion, history):
-    collection = "completion_data-hf"
-
-    # Convert completion to JSON and ignore certain columns
-    completion_json = completion.to_json(
-        columns_to_ignore=["embedding", "similarity", "similarity_to_answer"]
+query_engine_tools = [
+    QueryEngineTool(
+        query_engine=query_engine,
+        metadata=ToolMetadata(
+            name="AI_information",
+            description="""The 'AI_information' tool serves as a comprehensive repository for insights into the field of artificial intelligence. When utilizing this tool, the input should be the user's complete question. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, LLM augmentation, and more, thereby facilitating a rich, context-aware dialogue.""",
+        ),
     )
-
-    # Add the current date and time to the JSON
-    completion_json["timestamp"] = datetime.utcnow().isoformat()
-    completion_json["history"] = history
-    completion_json["history_len"] = len(history)
-
-    try:
-        mongo_db[collection].insert_one(completion_json)
-        logger.info("Completion saved to db")
-    except Exception as e:
-        logger.info(f"Something went wrong logging completion to db: {e}")
+]
 
 
-def log_likes(completion, like_data: gr.LikeData):
-    collection = "liked_data-test"
-
-    completion_json = completion.to_json(
-        columns_to_ignore=["embedding", "similarity", "similarity_to_answer"]
+def initialize_agent():
+    agent = OpenAIAgent.from_tools(
+        query_engine_tools,
+        llm=llm,
+        verbose=True,
+        system_prompt=system_message_openai_agent,
     )
-    completion_json["liked"] = like_data.liked
-    logger.info(f"User reported {like_data.liked=}")
+    return agent
 
-    try:
-        mongo_db[collection].insert_one(completion_json)
-        logger.info("")
-    except:
-        logger.info("Something went wrong logging")
+
+def reset_agent(agent_state):
+    agent_state = initialize_agent()  # Reset the agent by reassigning a new instance
+    return "Agent has been reset."
 
 
 def log_emails(email: gr.Textbox):
@@ -168,62 +175,22 @@ def add_sources(history, completion):
     return history
 
 
-def user(user_input, history):
-    """Adds user's question immediately to the chat."""
+def user(user_input, history, agent_state):
+    agent = agent_state
     return "", history + [[user_input, None]]
 
 
-def get_answer(history, sources: Optional[list[str]] = None):
+def get_answer(history, agent_state):
     user_input = history[-1][0]
     history[-1][1] = ""
 
-    if len(sources) == 0:
-        history[-1][1] = "No sources selected. Please select sources to search."
-        yield history, None
-        return
-
-    response_validation, error = api_function_call(
-        system_message=system_message_validation,
-        query=user_input,
-        response_model=QueryValidation,
-        stream=False,
-        model="gpt-3.5-turbo-0125",
-    )
-    logger.info(f"response_validation: {response_validation.model_dump_json(indent=2)}")
-
-    if response_validation.is_valid is False:
-        history[-1][
-            1
-        ] = "I'm sorry, but I am a chatbot designed to assist you with questions related to AI. I cannot answer that question as it is outside my expertise. Is there anything else I can assist you with?"
-        yield history, None
-        return
-
-    # Dynamically create filters list
-    display_ui_to_source = {
-        ui: src for ui, src in zip(AVAILABLE_SOURCES_UI, AVAILABLE_SOURCES)
-    }
-    sources_renamed = [display_ui_to_source[disp] for disp in sources]
-    dynamic_filters = [
-        MetadataFilter(key="source", value=source) for source in sources_renamed
-    ]
-
-    filters = MetadataFilters(
-        filters=dynamic_filters,
-        condition=FilterCondition.OR,
-    )
-    query_engine = index.as_query_engine(
-        llm=llm,
-        similarity_top_k=5,
-        embed_model=embeds,
-        streaming=True,
-        filters=filters,
-        text_qa_template=TEXT_QA_TEMPLATE,
-    )
-    completion = query_engine.query(user_input)
+    completion = agent_state.stream_chat(user_input)
 
     for token in completion.response_gen:
         history[-1][1] += token
         yield history, completion
+
+    logger.info(f"completion: {history[-1][1]=}")
 
 
 example_questions = [
@@ -242,31 +209,32 @@ with gr.Blocks(
     ),
     fill_height=True,
 ) as demo:
+
+    agent_state = gr.State(initialize_agent())
+
     with gr.Row():
         gr.HTML(
             "<h3><center>Towards AI 🤖: A Question-Answering Bot for anything AI-related</center></h3>"
         )
 
-    latest_completion = gr.State()
-
-    source_selection = gr.Dropdown(
-        choices=AVAILABLE_SOURCES_UI,
-        label="Select Sources",
-        value=AVAILABLE_SOURCES_UI,
-        multiselect=True,
-    )
-
     chatbot = gr.Chatbot(
-        elem_id="chatbot", show_copy_button=True, scale=2, likeable=True
+        elem_id="chatbot",
+        show_copy_button=True,
+        scale=2,
+        likeable=True,
+        show_label=False,
     )
 
     with gr.Row():
         question = gr.Textbox(
             label="What's your question?",
-            placeholder="Ask a question to our AI tutor here...",
+            placeholder="Ask a question to the AI tutor here...",
             lines=1,
+            scale=7,
+            show_label=False,
         )
-        submit = gr.Button(value="Send", variant="secondary")
+        submit = gr.Button(value="Send", variant="primary", scale=1)
+        reset_button = gr.Button("Reset Chat", variant="secondary", scale=1)
 
     with gr.Row():
         examples = gr.Examples(
@@ -278,31 +246,43 @@ with gr.Blocks(
                 label="Want to receive updates about our AI tutor?",
                 placeholder="Enter your email here...",
                 lines=1,
-                scale=3,
+                scale=6,
             )
-            submit_email = gr.Button(value="Submit", variant="secondary", scale=0)
+            submit_email = gr.Button(value="Submit", variant="secondary", scale=1)
 
     gr.Markdown(
-        "This application uses ChatGPT to search the docs for relevant information and answer questions."
+        "This application uses GPT3.5-Turbo to search the docs for relevant information and answer questions."
     )
 
     completion = gr.State()
 
-    submit.click(user, [question, chatbot], [question, chatbot], queue=False).then(
-        get_answer, inputs=[chatbot, source_selection], outputs=[chatbot, completion]
-    ).then(add_sources, inputs=[chatbot, completion], outputs=[chatbot])
+    submit.click(
+        user, [question, chatbot, agent_state], [question, chatbot], queue=False
+    ).then(
+        get_answer,
+        inputs=[chatbot, agent_state],
+        outputs=[chatbot, completion],
+    ).then(
+        add_sources, inputs=[chatbot, completion], outputs=[chatbot]
+    )
     # .then(
     # save_completion, inputs=[completion, chatbot]
     # )
 
-    question.submit(user, [question, chatbot], [question, chatbot], queue=False).then(
-        get_answer, inputs=[chatbot, source_selection], outputs=[chatbot, completion]
-    ).then(add_sources, inputs=[chatbot, completion], outputs=[chatbot])
+    question.submit(
+        user, [question, chatbot, agent_state], [question, chatbot], queue=False
+    ).then(
+        get_answer,
+        inputs=[chatbot, agent_state],
+        outputs=[chatbot, completion],
+    ).then(
+        add_sources, inputs=[chatbot, completion], outputs=[chatbot]
+    )
     # .then(
     #     save_completion, inputs=[completion, chatbot]
     # )
 
-    chatbot.like(log_likes, completion)
+    reset_button.click(reset_agent, inputs=[agent_state], outputs=[agent_state])
     submit_email.click(log_emails, email, email)
     email.submit(log_emails, email, email)
 
