@@ -116,7 +116,8 @@ def initialize_agent():
 
 def reset_agent(agent_state):
     agent_state = initialize_agent()  # Reset the agent by reassigning a new instance
-    return "Agent has been reset."
+    chatbot = [[None, None]]
+    return "Agent has been reset.", chatbot
 
 
 def log_emails(email: gr.Textbox):
@@ -144,7 +145,7 @@ def format_sources(completion) -> str:
     }
 
     documents_answer_template: str = (
-        "📝 Here are the sources I used to answer your question:\n\n{documents}\n\n{footnote}"
+        "📝 Here are the sources I used to answer your question:\n\n{documents}"
     )
     document_template: str = "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"
 
@@ -161,19 +162,20 @@ def format_sources(completion) -> str:
             for src in completion.source_nodes
         ]
     )
-    footnote: str = "I'm a bot 🤖 and not always perfect."
 
-    return documents_answer_template.format(documents=documents, footnote=footnote)
+    return documents_answer_template.format(documents=documents)
 
 
 def add_sources(history, completion):
     if completion is None:
-        return history
+        yield history
 
     formatted_sources = format_sources(completion)
-    history.append([None, formatted_sources])
+    if formatted_sources == "":
+        yield history
 
-    return history
+    history[-1][1] += "\n\n" + formatted_sources
+    yield history
 
 
 def user(user_input, history, agent_state):
@@ -283,7 +285,9 @@ with gr.Blocks(
     #     save_completion, inputs=[completion, chatbot]
     # )
 
-    reset_button.click(reset_agent, inputs=[agent_state], outputs=[agent_state])
+    reset_button.click(
+        reset_agent, inputs=[agent_state], outputs=[agent_state, chatbot]
+    )
     submit_email.click(log_emails, email, email)
     email.submit(log_emails, email, email)
 
