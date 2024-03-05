@@ -31,13 +31,14 @@ from call_openai import api_function_call
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
-# This variables are used to intercept API calls
-# launch mitmweb
-cert_file = "/Users/omar/Downloads/mitmproxy-ca-cert.pem"
-os.environ["REQUESTS_CA_BUNDLE"] = cert_file
-os.environ["SSL_CERT_FILE"] = cert_file
-os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
+# # This variables are used to intercept API calls
+# # launch mitmweb
+# cert_file = "/Users/omar/Downloads/mitmproxy-ca-cert.pem"
+# os.environ["REQUESTS_CA_BUNDLE"] = cert_file
+# os.environ["SSL_CERT_FILE"] = cert_file
+# os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
 
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
