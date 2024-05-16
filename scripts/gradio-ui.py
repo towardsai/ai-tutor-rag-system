@@ -43,6 +43,22 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
 
+DB_NAME = os.getenv("DB_NAME", "ai-tutor-db")
+DB_PATH = os.getenv("DB_PATH", f"scripts/{DB_NAME}")
+
+if not os.path.exists(DB_PATH):
+    # Download the vector database from the Hugging Face Hub if it doesn't exist locally
+    # https://huggingface.co/datasets/towardsai-buster/ai-tutor-db/tree/main
+    logger.warning(
+        f"Vector database does not exist at {DB_PATH}, downloading from Hugging Face Hub"
+    )
+    from huggingface_hub import snapshot_download
+
+    snapshot_download(
+        repo_id="towardsai-buster/ai-tutor-db", local_dir=DB_PATH, repo_type="dataset"
+    )
+    logger.info(f"Downloaded vector database to {DB_PATH}")
+
 AVAILABLE_SOURCES_UI = [
     "Gen AI 360: LLMs",
     "Gen AI 360: LangChain",
@@ -75,8 +91,8 @@ mongo_db = (
 )
 
 # Initialize vector store and index
-db2 = chromadb.PersistentClient(path="scripts/ai-tutor-db")
-chroma_collection = db2.get_or_create_collection("ai-tutor-db")
+db2 = chromadb.PersistentClient(path=DB_PATH)
+chroma_collection = db2.get_or_create_collection(DB_NAME)
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
@@ -122,6 +138,9 @@ def reset_agent(agent_state):
 
 def log_emails(email: gr.Textbox):
     collection = "email_data-test"
+    if mongo_db is None:
+        logger.warning("No MongoDB instance found, skipping email logging")
+        return ""
 
     logger.info(f"User reported {email=}")
     email_document = {"email": email}
@@ -202,16 +221,8 @@ example_questions = [
     "What is an embedding?",
 ]
 
-theme = gr.themes.Soft()
-with gr.Blocks(
-    theme=gr.themes.Soft(
-        primary_hue="blue",
-        secondary_hue="blue",
-        font=fonts.GoogleFont("Source Sans Pro"),
-        font_mono=fonts.GoogleFont("IBM Plex Mono"),
-    ),
-    fill_height=True,
-) as demo:
+
+with gr.Blocks(fill_height=True) as demo:
 
     agent_state = gr.State(initialize_agent())
 
