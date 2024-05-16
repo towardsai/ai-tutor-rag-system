@@ -4,14 +4,16 @@ emoji: 🧑🏻‍🏫
 colorFrom: gray
 colorTo: pink
 sdk: gradio
-sdk_version: 4.19.2
+sdk_version: 4.31.3
 app_file: scripts/gradio-ui.py
 pinned: false
 ---
----
-This project creates a helpful and accurate AI Tutor chatbot, leveraging GPT-3.5-Turbo and a RAG system. We design it to address student questions about AI with precision and clarity.
 
-### Installation
+This repository contains the notebooks for the RAG AI tutor course in [notebooks](./notebooks).
+
+A Gradio UI for an AI tutor chatbot is available in [scripts](./scripts/gradio-ui.py).
+
+### Installation (for Gradio UI)
 
 1. **Create a new Python environment:**
 
@@ -35,15 +37,14 @@ This project creates a helpful and accurate AI Tutor chatbot, leveraging GPT-3.5
     pip install -r requirements.txt
     ```
 
-### Usage
+### Usage (for Gradio UI)
 
 1. **Set environment variables:**
 
-    Before running the application, you need to set up your OpenAI API key and MongoDB URI as environment variables:
+    Before running the application, you need to set up your OpenAI API key:
 
     ```bash
     export OPENAI_API_KEY=your_openai_api_key_here
-    export MONGODB_URI=your_mongodb_uri_here
     ```
 
 2. **Run the application:**
