@@ -162,4 +162,7 @@ cython_debug/
 
 notebooks/mini-llama-articles/
 .vscode/
+.huggingface
 *.csv
+*.json
+*.jsonl
