@@ -160,9 +160,11 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-notebooks/mini-llama-articles/
 .vscode/
+notebooks/mini-llama-articles/
+scripts/ai-tutor-db
 .huggingface
+
 *.csv
 *.json
 *.jsonl
