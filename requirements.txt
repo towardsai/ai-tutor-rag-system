@@ -1,9 +1,11 @@
-pydantic>=2.7
-openai
-llama-index
-llama-index-vector-stores-chroma
+pydantic==2.7.1
+openai==1.30.1
+llama-index==0.10.37
+llama-index-vector-stores-chroma==0.1.8
+cohere==5.5.0
+gradio==4.31.3
+instructor==1.2.6
 numpy
-cohere
 tiktoken
 chromadb
 kaleido
@@ -11,8 +13,6 @@ python-multipart
 html2text
 sentence_transformers
 ipykernel
-gradio
-instructor
 pyarrow
 pymongo
 python-dotenv
