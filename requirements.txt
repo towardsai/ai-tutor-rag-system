@@ -16,3 +16,4 @@ instructor
 pydantic
 pyarrow
 pymongo
+python-dotenv
