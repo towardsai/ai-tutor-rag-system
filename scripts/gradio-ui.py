@@ -81,7 +81,7 @@ vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
 # Initialize OpenAI models
-llm = OpenAI(temperature=0, model="gpt-3.5-turbo-0125", max_tokens=None)
+llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=None)
 # embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
 embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="similarity")
 
