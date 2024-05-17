@@ -2,6 +2,9 @@ name: Sync to Hugging Face hub
 on:
   push:
     branches: [main]
+    paths:
+      - 'scripts/**'  # Replace with the path to your specific folder
+      - 'requirements.txt'  # Add this line to include requirements.txt
 
   # to run this workflow manually from the Actions tab
   workflow_dispatch:
