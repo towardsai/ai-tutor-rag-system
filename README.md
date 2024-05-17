@@ -9,9 +9,13 @@ app_file: scripts/gradio-ui.py
 pinned: false
 ---
 
-This repository contains the notebooks for the RAG AI tutor course in [notebooks](./notebooks).
+This repository contains the notebooks for the RAG course in [notebooks](./notebooks).
 
-A Gradio UI for an AI tutor chatbot is available in [scripts](./scripts/gradio-ui.py).
+A Gradio UI for an AI tutor chatbot is available in [scripts/gradio-ui.py](./scripts/gradio-ui.py).
+
+The Gradio demo is deployed on Hugging Face Spaces service at this URL: [AI Tutor Chatbot on Hugging Face](https://huggingface.co/spaces/towardsai-buster/ai-tutor-chatbot).
+
+There is a GitHub action that automatically deploys the Gradio demo after pushing changes inside the scripts folder.
 
 ### Installation (for Gradio UI)
 
