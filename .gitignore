@@ -165,6 +165,8 @@ notebooks/mini-llama-articles/
 scripts/ai-tutor-db
 .huggingface
 
+.DS_Store
+
 *.csv
 *.json
 *.jsonl
