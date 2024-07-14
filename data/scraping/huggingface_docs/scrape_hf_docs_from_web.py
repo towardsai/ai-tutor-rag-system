@@ -70,6 +70,7 @@ class DocsSpider(scrapy.Spider):
             f.write(response.body)
 
         self.pages.append({"url": response.url, "html": response.body})
+        # if self.progress_bar:
         self.progress_bar.update(1)
 
         for href in response.css("a::attr(href)").getall():

@@ -147,10 +147,13 @@ def save_to_jsonl(data, output_file):
 
 
 def main():
-    # html_dir = "huggingface_docs"  # Directory where HTML files are saved
-    html_dir = "transformers_docs_v4.42.0"  # Directory where HTML files are saved
-    base_url = "https://huggingface.co/docs/transformers/"
-    output_file = "hf_transformers_v4_42_0.jsonl"
+    # html_dir = "transformers_docs_v4.42.0"  # Directory where HTML files are saved
+    # base_url = "https://huggingface.co/docs/transformers/"
+
+    html_dir = "peft_docs_v0.11.0"  # Directory where HTML files are saved
+    base_url = "https://huggingface.co/docs/peft/"
+
+    output_file = "hf_peft_v0_11_0.jsonl"
 
     all_sections = parse_saved_html_files(html_dir, base_url)
     save_to_jsonl(all_sections, output_file)
