@@ -92,7 +92,7 @@ retriever = index.as_retriever(
 )
 
 
-with open("scripts/document_dict.pkl", "rb") as f:
+with open("scripts/ai-tutor-vector-db/document_dict.pkl", "rb") as f:
     document_dict = pickle.load(f)
 
 
