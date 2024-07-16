@@ -230,7 +230,17 @@ def generate_completion(
     logger.info(f"source: {sources=}")
 
 
+def vote(data: gr.LikeData):
+    if data.liked:
+        print("You upvoted this response: " + data.value["value"])
+    else:
+        print("You downvoted this response: " + data.value["value"])
+
+
 accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False)
+sources = gr.CheckboxGroup(
+    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False
+)
 model = gr.Dropdown(
     [
         "gemini-1.5-pro",
@@ -241,18 +251,6 @@ model = gr.Dropdown(
     value="gemini-1.5-pro",
     interactive=True,
 )
-
-sources = gr.CheckboxGroup(
-    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False
-)
-
-
-def vote(data: gr.LikeData):
-    if data.liked:
-        print("You upvoted this response: " + data.value["value"])
-    else:
-        print("You downvoted this response: " + data.value["value"])
-
 
 with gr.Blocks(
     fill_height=True,
