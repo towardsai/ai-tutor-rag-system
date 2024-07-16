@@ -1,33 +1,29 @@
-import os
+import json
 import logging
-from typing import Optional
+import os
+import pickle
 from datetime import datetime
+from typing import Optional
 
 import chromadb
-from llama_index.core.tools import QueryEngineTool, FunctionTool, ToolMetadata
-from llama_index.agent.openai import OpenAIAgent
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.core import VectorStoreIndex
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
-from llama_index.core.vector_stores import (
-    MetadataFilters,
-    MetadataFilter,
-    FilterCondition,
-)
 import gradio as gr
-from gradio.themes.utils import (
-    fonts,
-)
-
-from utils import init_mongo_db
+from llama_index.agent.openai import OpenAIAgent
+from llama_index.core import VectorStoreIndex, get_response_synthesizer
+from llama_index.core.data_structs import Node
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.schema import BaseNode, MetadataMode, NodeWithScore, TextNode
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.gemini import Gemini
+from llama_index.llms.openai import OpenAI
+from llama_index.vector_stores.chroma import ChromaVectorStore
 from tutor_prompts import (
     TEXT_QA_TEMPLATE,
     QueryValidation,
-    system_message_validation,
     system_message_openai_agent,
+    system_message_validation,
 )
-from call_openai import api_function_call
+
+# from utils import init_mongo_db
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -43,8 +39,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
 
-DB_NAME = os.getenv("DB_NAME", "ai-tutor-db")
-DB_PATH = os.getenv("DB_PATH", f"scripts/{DB_NAME}")
+DB_PATH = os.getenv("DB_PATH", f"scripts/ai-tutor-vector-db")
+DB_COLLECTION = os.getenv("DB_NAME", "ai-tutor-vector-db")
 
 if not os.path.exists(DB_PATH):
     # Download the vector database from the Hugging Face Hub if it doesn't exist locally
@@ -55,103 +51,49 @@ if not os.path.exists(DB_PATH):
     from huggingface_hub import snapshot_download
 
     snapshot_download(
-        repo_id="towardsai-buster/ai-tutor-db", local_dir=DB_PATH, repo_type="dataset"
+        repo_id="towardsai-buster/ai-tutor-vector-db",
+        local_dir=DB_PATH,
+        repo_type="dataset",
     )
     logger.info(f"Downloaded vector database to {DB_PATH}")
 
 AVAILABLE_SOURCES_UI = [
-    "Gen AI 360: LLMs",
-    "Gen AI 360: LangChain",
-    "Gen AI 360: Advanced RAG",
-    "Towards AI Blog",
-    "Activeloop Docs",
-    "HF Transformers Docs",
-    "Wikipedia",
-    "OpenAI Docs",
-    "LangChain Docs",
+    "HF Transformers",
 ]
 
 AVAILABLE_SOURCES = [
-    "llm_course",
-    "langchain_course",
-    "advanced_rag_course",
-    "towards_ai",
-    "activeloop",
-    "hf_transformers",
-    "wikipedia",
-    "openai",
-    "langchain_docs",
+    "HF_Transformers",
 ]
 
-# Initialize MongoDB
-mongo_db = (
-    init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
-    if MONGODB_URI
-    else logger.warning("No mongodb uri found, you will not be able to save data.")
-)
+# # Initialize MongoDB
+# mongo_db = (
+#     init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
+#     if MONGODB_URI
+#     else logger.warning("No mongodb uri found, you will not be able to save data.")
+# )
 
 # Initialize vector store and index
 db2 = chromadb.PersistentClient(path=DB_PATH)
-chroma_collection = db2.get_or_create_collection(DB_NAME)
+chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-# Initialize OpenAI models
-llm = OpenAI(temperature=0, model="gpt-3.5-turbo", max_tokens=None)
-# embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="text_search")
-embeds = OpenAIEmbedding(model="text-embedding-3-large", mode="similarity")
-
-query_engine = index.as_query_engine(
-    llm=llm,
-    similarity_top_k=5,
-    embed_model=embeds,
-    streaming=True,
-    text_qa_template=TEXT_QA_TEMPLATE,
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+    transformations=[SentenceSplitter(chunk_size=800, chunk_overlap=400)],
+    show_progress=True,
+    use_async=True,
 )
 
-query_engine_tools = [
-    QueryEngineTool(
-        query_engine=query_engine,
-        metadata=ToolMetadata(
-            name="AI_information",
-            description="""The 'AI_information' tool serves as a comprehensive repository for insights into the field of artificial intelligence. When utilizing this tool, the input should be the user's complete question. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, LLM augmentation, and more, thereby facilitating a rich, context-aware dialogue.""",
-        ),
-    )
-]
+retriever = index.as_retriever(
+    similarity_top_k=10,
+    use_async=True,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+)
 
 
-def initialize_agent():
-    agent = OpenAIAgent.from_tools(
-        query_engine_tools,
-        llm=llm,
-        verbose=True,
-        system_prompt=system_message_openai_agent,
-    )
-    return agent
-
-
-def reset_agent(agent_state):
-    agent_state = initialize_agent()  # Reset the agent by reassigning a new instance
-    chatbot = [[None, None]]
-    return "Agent has been reset.", chatbot
-
-
-def log_emails(email: gr.Textbox):
-    collection = "email_data-test"
-    if mongo_db is None:
-        logger.warning("No MongoDB instance found, skipping email logging")
-        return ""
-
-    logger.info(f"User reported {email=}")
-    email_document = {"email": email}
-
-    try:
-        mongo_db[collection].insert_one(email_document)
-        logger.info("")
-    except:
-        logger.info("Something went wrong logging")
-
-    return ""
+with open("scripts/document_dict.pkl", "rb") as f:
+    document_dict = pickle.load(f)
 
 
 def format_sources(completion) -> str:
@@ -194,6 +136,7 @@ def add_sources(history, completion):
         yield history
 
     history[-1][1] += "\n\n" + formatted_sources
+    # history.append([None, formatted_sources])
     yield history
 
 
@@ -206,7 +149,57 @@ def get_answer(history, agent_state):
     user_input = history[-1][0]
     history[-1][1] = ""
 
-    completion = agent_state.stream_chat(user_input)
+    query = user_input
+
+    nodes_context = []
+    nodes = retriever.retrieve(query)
+
+    # Filter nodes with the same ref_doc_id
+    def filter_nodes_by_unique_doc_id(nodes):
+        unique_nodes = {}
+        for node in nodes:
+            doc_id = node.node.ref_doc_id
+            if doc_id is not None and doc_id not in unique_nodes:
+                unique_nodes[doc_id] = node
+        return list(unique_nodes.values())
+
+    nodes = filter_nodes_by_unique_doc_id(nodes)
+    print(len(nodes))
+
+    for node in nodes:
+        print("Node ID\t", node.node_id)
+        print("Title\t", node.metadata["title"])
+        print("Text\t", node.text)
+        print("Score\t", node.score)
+        print("Metadata\t", node.metadata)
+        print("-_" * 20)
+        if node.metadata["retrieve_doc"] == True:
+            print("This node will be replaced by the document")
+            doc = document_dict[node.node.ref_doc_id]
+            print(doc.text)
+            new_node = NodeWithScore(
+                node=TextNode(text=doc.text, metadata=node.metadata), score=node.score
+            )
+
+            print(type(new_node))
+            nodes_context.append(new_node)
+        else:
+            nodes_context.append(node)
+            print(type(node))
+
+    # llm = Gemini(model="models/gemini-1.5-flash", temperature=1, max_tokens=None)
+    llm = Gemini(model="models/gemini-1.5-pro", temperature=1, max_tokens=None)
+    # llm = OpenAI(temperature=1, model="gpt-3.5-turbo", max_tokens=None)
+    # llm = OpenAI(temperature=1, model="gpt-4o", max_tokens=None)
+
+    response_synthesizer = get_response_synthesizer(
+        llm=llm,
+        response_mode="simple_summarize",
+        text_qa_template=TEXT_QA_TEMPLATE,
+        streaming=True,
+    )
+
+    completion = response_synthesizer.synthesize(query, nodes=nodes_context)
 
     for token in completion.response_gen:
         history[-1][1] += token
@@ -216,7 +209,7 @@ def get_answer(history, agent_state):
 
 
 example_questions = [
-    "What is the LLama model?",
+    "how to fine-tune an llm?",
     "What is a Large Language Model?",
     "What is an embedding?",
 ]
@@ -224,7 +217,8 @@ example_questions = [
 
 with gr.Blocks(fill_height=True) as demo:
 
-    agent_state = gr.State(initialize_agent())
+    # agent_state = gr.State(initialize_agent())
+    agent_state = gr.State()
 
     with gr.Row():
         gr.HTML(
@@ -248,25 +242,21 @@ with gr.Blocks(fill_height=True) as demo:
             show_label=False,
         )
         submit = gr.Button(value="Send", variant="primary", scale=1)
-        reset_button = gr.Button("Reset Chat", variant="secondary", scale=1)
+        # reset_button = gr.Button("Reset Chat", variant="secondary", scale=1)
 
-    with gr.Row():
-        examples = gr.Examples(
-            examples=example_questions,
-            inputs=question,
-        )
-        with gr.Row():
-            email = gr.Textbox(
-                label="Want to receive updates about our AI tutor?",
-                placeholder="Enter your email here...",
-                lines=1,
-                scale=6,
-            )
-            submit_email = gr.Button(value="Submit", variant="secondary", scale=1)
-
-    gr.Markdown(
-        "This application uses GPT3.5-Turbo to search the docs for relevant information and answer questions."
-    )
+    # with gr.Row():
+    #     examples = gr.Examples(
+    #         examples=example_questions,
+    #         inputs=question,
+    #     )
+    # with gr.Row():
+    #     email = gr.Textbox(
+    #         label="Want to receive updates about our AI tutor?",
+    #         placeholder="Enter your email here...",
+    #         lines=1,
+    #         scale=6,
+    #     )
+    #     submit_email = gr.Button(value="Submit", variant="secondary", scale=1)
 
     completion = gr.State()
 
@@ -296,11 +286,11 @@ with gr.Blocks(fill_height=True) as demo:
     #     save_completion, inputs=[completion, chatbot]
     # )
 
-    reset_button.click(
-        reset_agent, inputs=[agent_state], outputs=[agent_state, chatbot]
-    )
-    submit_email.click(log_emails, email, email)
-    email.submit(log_emails, email, email)
+    # reset_button.click(
+    #     reset_agent, inputs=[agent_state], outputs=[agent_state, chatbot]
+    # )
+    # submit_email.click(log_emails, email, email)
+    # email.submit(log_emails, email, email)
 
 demo.queue(default_concurrency_limit=CONCURRENCY_COUNT)
 demo.launch(debug=False, share=False)
