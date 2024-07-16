@@ -7,6 +7,7 @@ from typing import Optional
 
 import chromadb
 import gradio as gr
+from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core import VectorStoreIndex, get_response_synthesizer
 from llama_index.core.data_structs import Node
@@ -22,6 +23,8 @@ from tutor_prompts import (
     system_message_openai_agent,
     system_message_validation,
 )
+
+load_dotenv(".env")
 
 # from utils import init_mongo_db
 
@@ -188,7 +191,12 @@ def get_answer(history, agent_state):
             print(type(node))
 
     # llm = Gemini(model="models/gemini-1.5-flash", temperature=1, max_tokens=None)
-    llm = Gemini(model="models/gemini-1.5-pro", temperature=1, max_tokens=None)
+    llm = Gemini(
+        api_key=os.getenv("GOOGLE_API_KEY"),
+        model="models/gemini-1.5-pro",
+        temperature=1,
+        max_tokens=None,
+    )
     # llm = OpenAI(temperature=1, model="gpt-3.5-turbo", max_tokens=None)
     # llm = OpenAI(temperature=1, model="gpt-4o", max_tokens=None)
 
