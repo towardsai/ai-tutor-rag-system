@@ -158,11 +158,13 @@ def add_sources(answer_str, completion):
 def generate_completion(
     query,
     history,
-    model,
     sources,
+    model,
 ):
 
     print(f"query: {query}")
+    print(model)
+    print(sources)
     nodes = retriever.retrieve(query)
 
     # Filter out nodes with the same ref_doc_id
