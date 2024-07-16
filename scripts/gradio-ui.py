@@ -30,6 +30,7 @@ load_dotenv(".env")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("gradio").setLevel(logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # # This variables are used to intercept API calls
@@ -62,10 +63,22 @@ if not os.path.exists(DB_PATH):
 
 AVAILABLE_SOURCES_UI = [
     "HF Transformers",
+    "Towards AI Blog",
+    "Wikipedia",
+    "OpenAI Docs",
+    "LangChain Docs",
+    "LLama-Index Docs",
+    "RAG Course",
 ]
 
 AVAILABLE_SOURCES = [
     "HF_Transformers",
+    "towards_ai_blog",
+    "wikipedia",
+    "openai_docs",
+    "langchain_docs",
+    "llama_index_docs",
+    "rag_course",
 ]
 
 # # Initialize MongoDB
@@ -75,7 +88,7 @@ AVAILABLE_SOURCES = [
 #     else logger.warning("No mongodb uri found, you will not be able to save data.")
 # )
 
-# Initialize vector store and index
+
 db2 = chromadb.PersistentClient(path=DB_PATH)
 chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
@@ -130,34 +143,29 @@ def format_sources(completion) -> str:
     return documents_answer_template.format(documents=documents)
 
 
-def add_sources(history, completion):
+def add_sources(answer_str, completion):
     if completion is None:
-        yield history
+        yield answer_str
 
     formatted_sources = format_sources(completion)
     if formatted_sources == "":
-        yield history
+        yield answer_str
 
-    history[-1][1] += "\n\n" + formatted_sources
-    # history.append([None, formatted_sources])
-    yield history
-
-
-def user(user_input, history, agent_state):
-    agent = agent_state
-    return "", history + [[user_input, None]]
+    answer_str += "\n\n" + formatted_sources
+    yield answer_str
 
 
-def get_answer(history, agent_state):
-    user_input = history[-1][0]
-    history[-1][1] = ""
+def generate_completion(
+    query,
+    history,
+    model,
+    sources,
+):
 
-    query = user_input
-
-    nodes_context = []
+    print(f"query: {query}")
     nodes = retriever.retrieve(query)
 
-    # Filter nodes with the same ref_doc_id
+    # Filter out nodes with the same ref_doc_id
     def filter_nodes_by_unique_doc_id(nodes):
         unique_nodes = {}
         for node in nodes:
@@ -167,8 +175,9 @@ def get_answer(history, agent_state):
         return list(unique_nodes.values())
 
     nodes = filter_nodes_by_unique_doc_id(nodes)
-    print(len(nodes))
+    print(f"number of nodes after filtering: {len(nodes)}")
 
+    nodes_context = []
     for node in nodes:
         print("Node ID\t", node.node_id)
         print("Title\t", node.metadata["title"])
@@ -183,22 +192,19 @@ def get_answer(history, agent_state):
             new_node = NodeWithScore(
                 node=TextNode(text=doc.text, metadata=node.metadata), score=node.score
             )
-
-            print(type(new_node))
             nodes_context.append(new_node)
         else:
             nodes_context.append(node)
-            print(type(node))
 
-    # llm = Gemini(model="models/gemini-1.5-flash", temperature=1, max_tokens=None)
-    llm = Gemini(
-        api_key=os.getenv("GOOGLE_API_KEY"),
-        model="models/gemini-1.5-pro",
-        temperature=1,
-        max_tokens=None,
-    )
-    # llm = OpenAI(temperature=1, model="gpt-3.5-turbo", max_tokens=None)
-    # llm = OpenAI(temperature=1, model="gpt-4o", max_tokens=None)
+    if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
+        llm = Gemini(
+            api_key=os.getenv("GOOGLE_API_KEY"),
+            model=f"models/{model}",
+            temperature=1,
+            max_tokens=None,
+        )
+    else:
+        llm = OpenAI(temperature=1, model=model, max_tokens=None)
 
     response_synthesizer = get_response_synthesizer(
         llm=llm,
@@ -209,96 +215,64 @@ def get_answer(history, agent_state):
 
     completion = response_synthesizer.synthesize(query, nodes=nodes_context)
 
+    answer_str = ""
     for token in completion.response_gen:
-        history[-1][1] += token
-        yield history, completion
+        answer_str += token
+        yield answer_str
 
-    logger.info(f"completion: {history[-1][1]=}")
+    logger.info(f"completion: {answer_str=}")
 
+    for sources in add_sources(answer_str, completion):
+        yield sources
 
-example_questions = [
-    "how to fine-tune an llm?",
-    "What is a Large Language Model?",
-    "What is an embedding?",
-]
+    logger.info(f"source: {sources=}")
 
 
-with gr.Blocks(fill_height=True) as demo:
+accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False)
+model = gr.Dropdown(
+    [
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gpt-3.5-turbo",
+    ],
+    label="Model",
+    value="gemini-1.5-pro",
+    interactive=True,
+)
 
-    # agent_state = gr.State(initialize_agent())
-    agent_state = gr.State()
+sources = gr.CheckboxGroup(
+    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False
+)
 
-    with gr.Row():
-        gr.HTML(
-            "<h3><center>Towards AI 🤖: A Question-Answering Bot for anything AI-related</center></h3>"
-        )
 
+def vote(data: gr.LikeData):
+    if data.liked:
+        print("You upvoted this response: " + data.value["value"])
+    else:
+        print("You downvoted this response: " + data.value["value"])
+
+
+with gr.Blocks(
+    fill_height=True,
+    title="Towards AI 🤖",
+    analytics_enabled=True,
+) as demo:
     chatbot = gr.Chatbot(
-        elem_id="chatbot",
-        show_copy_button=True,
-        scale=2,
-        likeable=True,
+        scale=1,
+        placeholder="<strong>Towards AI 🤖: A Question-Answering Bot for anything AI-related</strong><br>",
         show_label=False,
+        likeable=True,
+        show_copy_button=True,
+    )
+    chatbot.like(vote, None, None)
+    gr.ChatInterface(
+        fn=generate_completion,
+        chatbot=chatbot,
+        undo_btn=None,
+        additional_inputs=[sources, model],
+        additional_inputs_accordion=accordion,
     )
 
-    with gr.Row():
-        question = gr.Textbox(
-            label="What's your question?",
-            placeholder="Ask a question to the AI tutor here...",
-            lines=1,
-            scale=7,
-            show_label=False,
-        )
-        submit = gr.Button(value="Send", variant="primary", scale=1)
-        # reset_button = gr.Button("Reset Chat", variant="secondary", scale=1)
-
-    # with gr.Row():
-    #     examples = gr.Examples(
-    #         examples=example_questions,
-    #         inputs=question,
-    #     )
-    # with gr.Row():
-    #     email = gr.Textbox(
-    #         label="Want to receive updates about our AI tutor?",
-    #         placeholder="Enter your email here...",
-    #         lines=1,
-    #         scale=6,
-    #     )
-    #     submit_email = gr.Button(value="Submit", variant="secondary", scale=1)
-
-    completion = gr.State()
-
-    submit.click(
-        user, [question, chatbot, agent_state], [question, chatbot], queue=False
-    ).then(
-        get_answer,
-        inputs=[chatbot, agent_state],
-        outputs=[chatbot, completion],
-    ).then(
-        add_sources, inputs=[chatbot, completion], outputs=[chatbot]
-    )
-    # .then(
-    # save_completion, inputs=[completion, chatbot]
-    # )
-
-    question.submit(
-        user, [question, chatbot, agent_state], [question, chatbot], queue=False
-    ).then(
-        get_answer,
-        inputs=[chatbot, agent_state],
-        outputs=[chatbot, completion],
-    ).then(
-        add_sources, inputs=[chatbot, completion], outputs=[chatbot]
-    )
-    # .then(
-    #     save_completion, inputs=[completion, chatbot]
-    # )
-
-    # reset_button.click(
-    #     reset_agent, inputs=[agent_state], outputs=[agent_state, chatbot]
-    # )
-    # submit_email.click(log_emails, email, email)
-    # email.submit(log_emails, email, email)
-
-demo.queue(default_concurrency_limit=CONCURRENCY_COUNT)
-demo.launch(debug=False, share=False)
+if __name__ == "__main__":
+    demo.queue(default_concurrency_limit=CONCURRENCY_COUNT)
+    demo.launch(debug=False, share=False)
