@@ -162,7 +162,7 @@ cython_debug/
 
 .vscode/
 notebooks/mini-llama-articles/
-scripts/ai-tutor-db
+scripts/ai-tutor-vector-db/
 .huggingface
 
 .DS_Store
