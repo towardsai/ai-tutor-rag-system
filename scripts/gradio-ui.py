@@ -328,7 +328,7 @@ model = gr.Dropdown(
     ],
     label="Model",
     value="gpt-4o-mini",
-    interactive=True,
+    interactive=False,
 )
 
 with gr.Blocks(
