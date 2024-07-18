@@ -170,3 +170,4 @@ scripts/ai-tutor-vector-db/
 *.csv
 *.json
 *.jsonl
+*.html
