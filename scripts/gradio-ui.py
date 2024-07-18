@@ -44,19 +44,6 @@ from tutor_prompts import (
 
 load_dotenv(".env")
 
-GPT4_MODELS.update(
-    {
-        "gpt-4-1106-preview": 128000,
-        "gpt-4-0125-preview": 128000,
-        "gpt-4-turbo-preview": 128000,
-        "gpt-4-turbo-2024-04-09": 128000,
-        "gpt-4-turbo": 128000,
-        "gpt-4o": 128000,
-        "gpt-4o-2024-05-13": 128000,
-        "gpt-4o-mini": 128000,
-        # Add any other models you need
-    }
-)
 
 # from utils import init_mongo_db
 
@@ -112,6 +99,33 @@ AVAILABLE_SOURCES = [
     "llama_index_docs",
     "rag_course",
 ]
+
+
+from llama_index.llms.openai.utils import (
+    ALL_AVAILABLE_MODELS,
+    AZURE_TURBO_MODELS,
+    CHAT_MODELS,
+    GPT3_5_MODELS,
+    GPT3_MODELS,
+    GPT4_MODELS,
+    TURBO_MODELS,
+)
+
+# Add new models to GPT4_MODELS
+new_gpt4_models = {
+    "gpt-4-1106-preview": 128000,
+    "gpt-4-0125-preview": 128000,
+    "gpt-4-turbo-preview": 128000,
+    "gpt-4-turbo-2024-04-09": 128000,
+    "gpt-4-turbo": 128000,
+    "gpt-4o": 128000,
+    "gpt-4o-2024-05-13": 128000,
+    "gpt-4o-mini": 128000,
+}
+GPT4_MODELS.update(new_gpt4_models)
+
+# Update ALL_AVAILABLE_MODELS
+ALL_AVAILABLE_MODELS.update(new_gpt4_models)
 
 # # Initialize MongoDB
 # mongo_db = (
