@@ -163,7 +163,7 @@ custom_retriever = CustomRetriever(vector_retriever, document_dict)
 
 
 def format_sources(completion) -> str:
-    if len(completion.source_nodes) == 0:
+    if len(completion.sources) == 0:
         return ""
 
     # Mapping of source system names to user-friendly names
@@ -186,7 +186,7 @@ def format_sources(completion) -> str:
                 ),
                 url=src.metadata["url"],
             )
-            for src in completion.source_nodes
+            for src in completion.sources[0].raw_output
         ]
     )
 
@@ -257,19 +257,10 @@ def generate_completion(
             retriever=custom_retriever,
             metadata=ToolMetadata(
                 name="AI_information",
-                description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When utilizing this tool, the input should be the user's question rewritten as a statement. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+                description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I fine-tune an LLM?', the input should be 'Fine-tune an Large Language Model (LLM)'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
             ),
         )
     ]
-    # query_engine_tools = [
-    #     QueryEngineTool(
-    #         query_engine=custom_query_engine,
-    #         metadata=ToolMetadata(
-    #             name="AI_information",
-    #             description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When utilizing this tool, the input should be the user's question rewritten as a statement. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
-    #         ),
-    #     )
-    # ]
 
     if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
         # agent = AgentRunner.from_llm(
