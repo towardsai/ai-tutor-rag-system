@@ -7,24 +7,56 @@ from typing import Optional
 
 import chromadb
 import gradio as gr
+from custom_retriever import CustomRetriever
 from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core import VectorStoreIndex, get_response_synthesizer
+from llama_index.core.agent import AgentRunner, ReActAgent
+from llama_index.core.chat_engine import (
+    CondensePlusContextChatEngine,
+    CondenseQuestionChatEngine,
+    ContextChatEngine,
+)
 from llama_index.core.data_structs import Node
+from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import BaseNode, MetadataMode, NodeWithScore, TextNode
+from llama_index.core.tools import (
+    FunctionTool,
+    QueryEngineTool,
+    RetrieverTool,
+    ToolMetadata,
+)
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openai.utils import GPT4_MODELS
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from tutor_prompts import (
     TEXT_QA_TEMPLATE,
     QueryValidation,
     system_message_openai_agent,
     system_message_validation,
+    system_prompt,
 )
 
 load_dotenv(".env")
+
+GPT4_MODELS.update(
+    {
+        "gpt-4-1106-preview": 128000,
+        "gpt-4-0125-preview": 128000,
+        "gpt-4-turbo-preview": 128000,
+        "gpt-4-turbo-2024-04-09": 128000,
+        "gpt-4-turbo": 128000,
+        "gpt-4o": 128000,
+        "gpt-4o-2024-05-13": 128000,
+        "gpt-4o-mini": 128000,
+        # Add any other models you need
+    }
+)
 
 # from utils import init_mongo_db
 
@@ -35,7 +67,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # # This variables are used to intercept API calls
 # # launch mitmweb
-# cert_file = "/Users/omar/Downloads/mitmproxy-ca-cert.pem"
+# cert_file = "/Users/omar/Documents/mitmproxy-ca-cert.pem"
 # os.environ["REQUESTS_CA_BUNDLE"] = cert_file
 # os.environ["SSL_CERT_FILE"] = cert_file
 # os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
@@ -100,16 +132,20 @@ index = VectorStoreIndex.from_vector_store(
     show_progress=True,
     use_async=True,
 )
-
-retriever = index.as_retriever(
+vector_retriever = VectorIndexRetriever(
+    index=index,
     similarity_top_k=10,
     use_async=True,
     embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
 )
 
+memory = ChatMemoryBuffer.from_defaults(token_limit=150000)
+
 
 with open("scripts/ai-tutor-vector-db/document_dict.pkl", "rb") as f:
     document_dict = pickle.load(f)
+
+custom_retriever = CustomRetriever(vector_retriever, document_dict)
 
 
 def format_sources(completion) -> str:
@@ -151,7 +187,9 @@ def add_sources(answer_str, completion):
     if formatted_sources == "":
         yield answer_str
 
-    answer_str += "\n\n" + formatted_sources
+    if formatted_sources != "":
+        answer_str += "\n\n" + formatted_sources
+
     yield answer_str
 
 
@@ -165,38 +203,6 @@ def generate_completion(
     print(f"query: {query}")
     print(model)
     print(sources)
-    nodes = retriever.retrieve(query)
-
-    # Filter out nodes with the same ref_doc_id
-    def filter_nodes_by_unique_doc_id(nodes):
-        unique_nodes = {}
-        for node in nodes:
-            doc_id = node.node.ref_doc_id
-            if doc_id is not None and doc_id not in unique_nodes:
-                unique_nodes[doc_id] = node
-        return list(unique_nodes.values())
-
-    nodes = filter_nodes_by_unique_doc_id(nodes)
-    print(f"number of nodes after filtering: {len(nodes)}")
-
-    nodes_context = []
-    for node in nodes:
-        print("Node ID\t", node.node_id)
-        print("Title\t", node.metadata["title"])
-        print("Text\t", node.text)
-        print("Score\t", node.score)
-        print("Metadata\t", node.metadata)
-        print("-_" * 20)
-        if node.metadata["retrieve_doc"] == True:
-            print("This node will be replaced by the document")
-            doc = document_dict[node.node.ref_doc_id]
-            print(doc.text)
-            new_node = NodeWithScore(
-                node=TextNode(text=doc.text, metadata=node.metadata), score=node.score
-            )
-            nodes_context.append(new_node)
-        else:
-            nodes_context.append(node)
 
     if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
         llm = Gemini(
@@ -215,7 +221,73 @@ def generate_completion(
         streaming=True,
     )
 
-    completion = response_synthesizer.synthesize(query, nodes=nodes_context)
+    # completion = response_synthesizer.synthesize(query, nodes=nodes_context)
+    custom_query_engine = RetrieverQueryEngine(
+        retriever=custom_retriever,
+        response_synthesizer=response_synthesizer,
+    )
+
+    # agent = CondensePlusContextChatEngine.from_defaults(
+    # agent = CondenseQuestionChatEngine.from_defaults(
+
+    # agent = ContextChatEngine.from_defaults(
+    #     retriever=custom_retriever,
+    #     context_template=system_prompt,
+    #     llm=llm,
+    #     memory=memory,
+    #     verbose=True,
+    # )
+
+    query_engine_tools = [
+        RetrieverTool(
+            retriever=custom_retriever,
+            metadata=ToolMetadata(
+                name="AI_information",
+                description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When utilizing this tool, the input should be the user's question rewritten as a statement. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+            ),
+        )
+    ]
+    # query_engine_tools = [
+    #     QueryEngineTool(
+    #         query_engine=custom_query_engine,
+    #         metadata=ToolMetadata(
+    #             name="AI_information",
+    #             description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When utilizing this tool, the input should be the user's question rewritten as a statement. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+    #         ),
+    #     )
+    # ]
+
+    if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
+        # agent = AgentRunner.from_llm(
+        #     llm=llm,
+        #     tools=query_engine_tools,
+        #     verbose=True,
+        #     memory=memory,
+        #     # system_prompt=system_message_openai_agent,
+        # )
+        agent = ReActAgent.from_tools(
+            llm=llm,
+            memory=memory,
+            tools=query_engine_tools,
+            verbose=True,
+            # system_prompt=system_message_openai_agent,
+        )
+        prompts = agent._get_prompt_modules()
+        print(prompts.values())
+    else:
+        agent = OpenAIAgent.from_tools(
+            llm=llm,
+            memory=memory,
+            tools=query_engine_tools,
+            verbose=True,
+            system_prompt=system_message_openai_agent,
+        )
+
+    # completion = custom_query_engine.query(query)
+    completion = agent.stream_chat(query)
+
+    # completion = agent.chat(query)
+    # return str(completion)
 
     answer_str = ""
     for token in completion.response_gen:
@@ -246,9 +318,11 @@ model = gr.Dropdown(
         "gemini-1.5-pro",
         "gemini-1.5-flash",
         "gpt-3.5-turbo",
+        "gpt-4o-mini",
+        "gpt-4o",
     ],
     label="Model",
-    value="gemini-1.5-pro",
+    value="gpt-4o-mini",
     interactive=True,
 )
 
