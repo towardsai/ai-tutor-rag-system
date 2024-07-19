@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import pickle
@@ -12,11 +11,12 @@ from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core import VectorStoreIndex, get_response_synthesizer
 from llama_index.core.agent import AgentRunner, ReActAgent
-from llama_index.core.chat_engine import (
-    CondensePlusContextChatEngine,
-    CondenseQuestionChatEngine,
-    ContextChatEngine,
-)
+
+# from llama_index.core.chat_engine import (
+#     CondensePlusContextChatEngine,
+#     CondenseQuestionChatEngine,
+#     ContextChatEngine,
+# )
 from llama_index.core.data_structs import Node
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.node_parser import SentenceSplitter
@@ -228,18 +228,17 @@ def generate_completion(
     else:
         llm = OpenAI(temperature=1, model=model, max_tokens=None)
 
-    response_synthesizer = get_response_synthesizer(
-        llm=llm,
-        response_mode="simple_summarize",
-        text_qa_template=TEXT_QA_TEMPLATE,
-        streaming=True,
-    )
+    # response_synthesizer = get_response_synthesizer(
+    #     llm=llm,
+    #     response_mode="simple_summarize",
+    #     text_qa_template=TEXT_QA_TEMPLATE,
+    #     streaming=True,
+    # )
 
-    # completion = response_synthesizer.synthesize(query, nodes=nodes_context)
-    custom_query_engine = RetrieverQueryEngine(
-        retriever=custom_retriever,
-        response_synthesizer=response_synthesizer,
-    )
+    # custom_query_engine = RetrieverQueryEngine(
+    #     retriever=custom_retriever,
+    #     response_synthesizer=response_synthesizer,
+    # )
 
     # agent = CondensePlusContextChatEngine.from_defaults(
     # agent = CondenseQuestionChatEngine.from_defaults(
