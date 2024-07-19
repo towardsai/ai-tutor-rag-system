@@ -26,7 +26,13 @@ class CustomRetriever(BaseRetriever):
     def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
         """Retrieve nodes given query."""
 
-        logger.info(f"Retrieving nodes for query: {query_bundle.query_str}")
+        logger.info(f"Retrieving nodes for query: {query_bundle}")
+
+        # LlamaIndex adds "\ninput is " to the query string
+        query_bundle.query_str = query_bundle.query_str.replace("\ninput is ", "")
+        query_bundle.query_str = query_bundle.query_str.rstrip()
+
+        logger.info(f"Query: {query_bundle.query_str}")
 
         nodes = self._vector_retriever.retrieve(query_bundle)
 

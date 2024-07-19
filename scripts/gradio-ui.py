@@ -153,7 +153,7 @@ vector_retriever = VectorIndexRetriever(
     embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
 )
 
-memory = ChatMemoryBuffer.from_defaults(token_limit=150000)
+memory = ChatMemoryBuffer.from_defaults(token_limit=120000)
 
 
 with open("scripts/ai-tutor-vector-db/document_dict.pkl", "rb") as f:
@@ -257,7 +257,7 @@ def generate_completion(
             retriever=custom_retriever,
             metadata=ToolMetadata(
                 name="AI_information",
-                description="""Only use this tool if necessary. The 'AI_information' tool is a comprehensive repository for information in artificial intelligence (AI). When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I fine-tune an LLM?', the input should be 'Fine-tune an Large Language Model (LLM)'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+                description="""Only use this tool if necessary. The 'AI_information' tool returns information about the artificial intelligence (AI) field. When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I quantize a model?', the input should be 'Model quantization'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
             ),
         )
     ]
@@ -277,8 +277,6 @@ def generate_completion(
             verbose=True,
             # system_prompt=system_message_openai_agent,
         )
-        prompts = agent._get_prompt_modules()
-        print(prompts.values())
     else:
         agent = OpenAIAgent.from_tools(
             llm=llm,
@@ -290,9 +288,6 @@ def generate_completion(
 
     # completion = custom_query_engine.query(query)
     completion = agent.stream_chat(query)
-
-    # completion = agent.chat(query)
-    # return str(completion)
 
     answer_str = ""
     for token in completion.response_gen:
