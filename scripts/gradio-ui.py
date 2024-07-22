@@ -1,8 +1,5 @@
-import logging
 import os
 import pickle
-from datetime import datetime
-from typing import Optional
 
 import chromadb
 import gradio as gr
@@ -10,64 +7,23 @@ import logfire
 from custom_retriever import CustomRetriever
 from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
-from llama_index.core import VectorStoreIndex, get_response_synthesizer
-from llama_index.core.agent import AgentRunner, ReActAgent
-
-# from llama_index.core.chat_engine import (
-#     CondensePlusContextChatEngine,
-#     CondenseQuestionChatEngine,
-#     ContextChatEngine,
-# )
-from llama_index.core.data_structs import Node
+from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import MessageRole
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.tools import (
-    FunctionTool,
-    QueryEngineTool,
-    RetrieverTool,
-    ToolMetadata,
-)
-
-# from llama_index.core.vector_stores import (
-#     ExactMatchFilter,
-#     FilterCondition,
-#     FilterOperator,
-#     MetadataFilter,
-#     MetadataFilters,
-# )
+from llama_index.core.tools import RetrieverTool, ToolMetadata
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
-from llama_index.llms.openai.utils import GPT4_MODELS
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from tutor_prompts import (
-    TEXT_QA_TEMPLATE,
-    QueryValidation,
-    system_message_openai_agent,
-    system_message_validation,
-    system_prompt,
-)
-
-load_dotenv()
-
+from tutor_prompts import system_message_openai_agent
 
 # from utils import init_mongo_db
 
-logging.getLogger("gradio").setLevel(logging.INFO)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logfire.configure()
-# logging.basicConfig(handlers=[logfire.LogfireLoggingHandler("INFO")])
-# logger = logging.getLogger(__name__)
+load_dotenv()
 
-# # This variables are used to intercept API calls
-# # launch mitmweb
-# cert_file = "/Users/omar/Documents/mitmproxy-ca-cert.pem"
-# os.environ["REQUESTS_CA_BUNDLE"] = cert_file
-# os.environ["SSL_CERT_FILE"] = cert_file
-# os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
+logfire.configure()
+
 
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -131,7 +87,6 @@ index = VectorStoreIndex.from_vector_store(
     use_async=True,
 )
 vector_retriever = VectorIndexRetriever(
-    # filters=filters,
     index=index,
     similarity_top_k=10,
     use_async=True,
@@ -204,12 +159,10 @@ def generate_completion(
         chat_list = memory.get()
 
         if len(chat_list) != 0:
-            # Compute number of interactions
             user_index = [
                 i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER
             ]
             if len(user_index) > len(history):
-                # A message was removed, need to update the memory
                 user_index_to_remove = user_index[len(history)]
                 chat_list = chat_list[:user_index_to_remove]
                 memory.set(chat_list)
@@ -237,40 +190,9 @@ def generate_completion(
         # )
         # custom_retriever = CustomRetriever(vector_retriever, document_dict)
 
-        if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
-            llm = Gemini(
-                api_key=os.getenv("GOOGLE_API_KEY"),
-                model=f"models/{model}",
-                temperature=1,
-                max_tokens=None,
-            )
-        else:
-            llm = OpenAI(temperature=1, model=model, max_tokens=None)
-            client = llm._get_client()
-            logfire.instrument_openai(client)
-
-        # response_synthesizer = get_response_synthesizer(
-        #     llm=llm,
-        #     response_mode="simple_summarize",
-        #     text_qa_template=TEXT_QA_TEMPLATE,
-        #     streaming=True,
-        # )
-
-        # custom_query_engine = RetrieverQueryEngine(
-        #     retriever=custom_retriever,
-        #     response_synthesizer=response_synthesizer,
-        # )
-
-        # agent = CondensePlusContextChatEngine.from_defaults(
-        # agent = CondenseQuestionChatEngine.from_defaults(
-
-        # agent = ContextChatEngine.from_defaults(
-        #     retriever=custom_retriever,
-        #     context_template=system_prompt,
-        #     llm=llm,
-        #     memory=memory,
-        #     verbose=True,
-        # )
+        llm = OpenAI(temperature=1, model=model, max_tokens=None)
+        client = llm._get_client()
+        logfire.instrument_openai(client)
 
         query_engine_tools = [
             RetrieverTool(
@@ -282,23 +204,13 @@ def generate_completion(
             )
         ]
 
-        if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
-            agent = AgentRunner.from_llm(
-                llm=llm,
-                tools=query_engine_tools,  # type: ignore
-                verbose=True,
-                memory=memory,
-                # system_prompt=system_message_openai_agent,
-            )
-        else:
-            agent = OpenAIAgent.from_tools(
-                llm=llm,
-                memory=memory,
-                tools=query_engine_tools,  # type: ignore
-                system_prompt=system_message_openai_agent,
-            )
+        agent = OpenAIAgent.from_tools(
+            llm=llm,
+            memory=memory,
+            tools=query_engine_tools,  # type: ignore
+            system_prompt=system_message_openai_agent,
+        )
 
-    # completion = custom_query_engine.query(query)
     completion = agent.stream_chat(query)
 
     answer_str = ""
