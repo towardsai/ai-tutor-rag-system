@@ -1,6 +1,8 @@
 import logging
+import time
 from typing import List
 
+import logfire
 from llama_index.core import QueryBundle
 from llama_index.core.retrievers import BaseRetriever, VectorIndexRetriever
 from llama_index.core.schema import NodeWithScore, TextNode
@@ -30,9 +32,12 @@ class CustomRetriever(BaseRetriever):
         query_bundle.query_str = query_bundle.query_str.replace("\ninput is ", "")
         query_bundle.query_str = query_bundle.query_str.rstrip()
 
-        logger.info(f"Retrieving nodes for query: {query_bundle}")
-
+        logfire.info(f"Retrieving 10 nodes with string: '{query_bundle}'")
+        start = time.time()
         nodes = self._vector_retriever.retrieve(query_bundle)
+
+        duration = time.time() - start
+        logfire.info(f"Retrieving nodes took {duration:.2f}s")
 
         # Filter out nodes with the same ref_doc_id
         def filter_nodes_by_unique_doc_id(nodes):
@@ -44,7 +49,7 @@ class CustomRetriever(BaseRetriever):
             return list(unique_nodes.values())
 
         nodes = filter_nodes_by_unique_doc_id(nodes)
-        print(f"number of nodes after filtering: {len(nodes)}")
+        logfire.info(f"Number of nodes after filtering: {len(nodes)}")
 
         nodes_context = []
         for node in nodes:
@@ -59,7 +64,7 @@ class CustomRetriever(BaseRetriever):
                 doc = self._document_dict[node.node.ref_doc_id]
                 # print(doc.text)
                 new_node = NodeWithScore(
-                    node=TextNode(text=doc.text, metadata=node.metadata),
+                    node=TextNode(text=doc.text, metadata=node.metadata),  # type: ignore
                     score=node.score,
                 )
                 nodes_context.append(new_node)

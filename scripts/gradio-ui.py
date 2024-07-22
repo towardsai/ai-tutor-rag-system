@@ -6,6 +6,7 @@ from typing import Optional
 
 import chromadb
 import gradio as gr
+import logfire
 from custom_retriever import CustomRetriever
 from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
@@ -18,17 +19,25 @@ from llama_index.core.agent import AgentRunner, ReActAgent
 #     ContextChatEngine,
 # )
 from llama_index.core.data_structs import Node
+from llama_index.core.llms import MessageRole
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.schema import BaseNode, MetadataMode, NodeWithScore, TextNode
 from llama_index.core.tools import (
     FunctionTool,
     QueryEngineTool,
     RetrieverTool,
     ToolMetadata,
 )
+
+# from llama_index.core.vector_stores import (
+#     ExactMatchFilter,
+#     FilterCondition,
+#     FilterOperator,
+#     MetadataFilter,
+#     MetadataFilters,
+# )
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
@@ -42,15 +51,16 @@ from tutor_prompts import (
     system_prompt,
 )
 
-load_dotenv(".env")
+load_dotenv()
 
 
 # from utils import init_mongo_db
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 logging.getLogger("gradio").setLevel(logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logfire.configure()
+# logging.basicConfig(handlers=[logfire.LogfireLoggingHandler("INFO")])
+# logger = logging.getLogger(__name__)
 
 # # This variables are used to intercept API calls
 # # launch mitmweb
@@ -68,7 +78,7 @@ DB_COLLECTION = os.getenv("DB_NAME", "ai-tutor-vector-db")
 if not os.path.exists(DB_PATH):
     # Download the vector database from the Hugging Face Hub if it doesn't exist locally
     # https://huggingface.co/datasets/towardsai-buster/ai-tutor-db/tree/main
-    logger.warning(
+    logfire.warn(
         f"Vector database does not exist at {DB_PATH}, downloading from Hugging Face Hub"
     )
     from huggingface_hub import snapshot_download
@@ -78,7 +88,7 @@ if not os.path.exists(DB_PATH):
         local_dir=DB_PATH,
         repo_type="dataset",
     )
-    logger.info(f"Downloaded vector database to {DB_PATH}")
+    logfire.info(f"Downloaded vector database to {DB_PATH}")
 
 AVAILABLE_SOURCES_UI = [
     "HF Transformers",
@@ -101,32 +111,6 @@ AVAILABLE_SOURCES = [
 ]
 
 
-from llama_index.llms.openai.utils import (
-    ALL_AVAILABLE_MODELS,
-    AZURE_TURBO_MODELS,
-    CHAT_MODELS,
-    GPT3_5_MODELS,
-    GPT3_MODELS,
-    GPT4_MODELS,
-    TURBO_MODELS,
-)
-
-# Add new models to GPT4_MODELS
-new_gpt4_models = {
-    "gpt-4-1106-preview": 128000,
-    "gpt-4-0125-preview": 128000,
-    "gpt-4-turbo-preview": 128000,
-    "gpt-4-turbo-2024-04-09": 128000,
-    "gpt-4-turbo": 128000,
-    "gpt-4o": 128000,
-    "gpt-4o-2024-05-13": 128000,
-    "gpt-4o-mini": 128000,
-}
-GPT4_MODELS.update(new_gpt4_models)
-
-# Update ALL_AVAILABLE_MODELS
-ALL_AVAILABLE_MODELS.update(new_gpt4_models)
-
 # # Initialize MongoDB
 # mongo_db = (
 #     init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
@@ -147,15 +131,12 @@ index = VectorStoreIndex.from_vector_store(
     use_async=True,
 )
 vector_retriever = VectorIndexRetriever(
+    # filters=filters,
     index=index,
     similarity_top_k=10,
     use_async=True,
     embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
 )
-
-memory = ChatMemoryBuffer.from_defaults(token_limit=120000)
-
-
 with open("scripts/ai-tutor-vector-db/document_dict.pkl", "rb") as f:
     document_dict = pickle.load(f)
 
@@ -212,78 +193,110 @@ def generate_completion(
     history,
     sources,
     model,
+    memory,
 ):
 
-    print(f"query: {query}")
-    print(model)
-    print(sources)
+    with logfire.span("Running query"):
+        logfire.info(f"query: {query}")
+        logfire.info(f"model: {model}")
+        logfire.info(f"sources: {sources}")
 
-    if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
-        llm = Gemini(
-            api_key=os.getenv("GOOGLE_API_KEY"),
-            model=f"models/{model}",
-            temperature=1,
-            max_tokens=None,
-        )
-    else:
-        llm = OpenAI(temperature=1, model=model, max_tokens=None)
+        chat_list = memory.get()
 
-    # response_synthesizer = get_response_synthesizer(
-    #     llm=llm,
-    #     response_mode="simple_summarize",
-    #     text_qa_template=TEXT_QA_TEMPLATE,
-    #     streaming=True,
-    # )
+        if len(chat_list) != 0:
+            # Compute number of interactions
+            user_index = [
+                i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER
+            ]
+            if len(user_index) > len(history):
+                # A message was removed, need to update the memory
+                user_index_to_remove = user_index[len(history)]
+                chat_list = chat_list[:user_index_to_remove]
+                memory.set(chat_list)
 
-    # custom_query_engine = RetrieverQueryEngine(
-    #     retriever=custom_retriever,
-    #     response_synthesizer=response_synthesizer,
-    # )
+        logfire.info(f"chat_history: {len(memory.get())} {memory.get()}")
+        logfire.info(f"gradio_history: {len(history)} {history}")
 
-    # agent = CondensePlusContextChatEngine.from_defaults(
-    # agent = CondenseQuestionChatEngine.from_defaults(
-
-    # agent = ContextChatEngine.from_defaults(
-    #     retriever=custom_retriever,
-    #     context_template=system_prompt,
-    #     llm=llm,
-    #     memory=memory,
-    #     verbose=True,
-    # )
-
-    query_engine_tools = [
-        RetrieverTool(
-            retriever=custom_retriever,
-            metadata=ToolMetadata(
-                name="AI_information",
-                description="""Only use this tool if necessary. The 'AI_information' tool returns information about the artificial intelligence (AI) field. When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I quantize a model?', the input should be 'Model quantization'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
-            ),
-        )
-    ]
-
-    if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
-        # agent = AgentRunner.from_llm(
-        #     llm=llm,
-        #     tools=query_engine_tools,
-        #     verbose=True,
-        #     memory=memory,
-        #     # system_prompt=system_message_openai_agent,
+        # # # TODO: change source UI name to actual source name
+        # filters = MetadataFilters(
+        #     filters=[
+        #         # MetadataFilter(key="source", value="HF_Transformers"),
+        #         # MetadataFilter(key="source", value="towards_ai_blog"),
+        #         MetadataFilter(
+        #             key="source", operator=FilterOperator.EQ, value="HF_Transformers"
+        #         ),
+        #     ],
+        #     # condition=FilterCondition.OR,
         # )
-        agent = ReActAgent.from_tools(
-            llm=llm,
-            memory=memory,
-            tools=query_engine_tools,
-            verbose=True,
-            # system_prompt=system_message_openai_agent,
-        )
-    else:
-        agent = OpenAIAgent.from_tools(
-            llm=llm,
-            memory=memory,
-            tools=query_engine_tools,
-            verbose=True,
-            system_prompt=system_message_openai_agent,
-        )
+        # vector_retriever = VectorIndexRetriever(
+        #     # filters=filters,
+        #     index=index,
+        #     similarity_top_k=10,
+        #     use_async=True,
+        #     embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+        # )
+        # custom_retriever = CustomRetriever(vector_retriever, document_dict)
+
+        if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
+            llm = Gemini(
+                api_key=os.getenv("GOOGLE_API_KEY"),
+                model=f"models/{model}",
+                temperature=1,
+                max_tokens=None,
+            )
+        else:
+            llm = OpenAI(temperature=1, model=model, max_tokens=None)
+            client = llm._get_client()
+            logfire.instrument_openai(client)
+
+        # response_synthesizer = get_response_synthesizer(
+        #     llm=llm,
+        #     response_mode="simple_summarize",
+        #     text_qa_template=TEXT_QA_TEMPLATE,
+        #     streaming=True,
+        # )
+
+        # custom_query_engine = RetrieverQueryEngine(
+        #     retriever=custom_retriever,
+        #     response_synthesizer=response_synthesizer,
+        # )
+
+        # agent = CondensePlusContextChatEngine.from_defaults(
+        # agent = CondenseQuestionChatEngine.from_defaults(
+
+        # agent = ContextChatEngine.from_defaults(
+        #     retriever=custom_retriever,
+        #     context_template=system_prompt,
+        #     llm=llm,
+        #     memory=memory,
+        #     verbose=True,
+        # )
+
+        query_engine_tools = [
+            RetrieverTool(
+                retriever=custom_retriever,
+                metadata=ToolMetadata(
+                    name="AI_information",
+                    description="""Only use this tool if necessary. The 'AI_information' tool returns information about the artificial intelligence (AI) field. When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I quantize a model?', the input should be 'Model quantization'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+                ),
+            )
+        ]
+
+        if model == "gemini-1.5-flash" or model == "gemini-1.5-pro":
+            agent = AgentRunner.from_llm(
+                llm=llm,
+                tools=query_engine_tools,  # type: ignore
+                verbose=True,
+                memory=memory,
+                # system_prompt=system_message_openai_agent,
+            )
+        else:
+            agent = OpenAIAgent.from_tools(
+                llm=llm,
+                memory=memory,
+                tools=query_engine_tools,  # type: ignore
+                system_prompt=system_message_openai_agent,
+            )
 
     # completion = custom_query_engine.query(query)
     completion = agent.stream_chat(query)
@@ -293,12 +306,8 @@ def generate_completion(
         answer_str += token
         yield answer_str
 
-    logger.info(f"completion: {answer_str=}")
-
-    for sources in add_sources(answer_str, completion):
-        yield sources
-
-    logger.info(f"source: {sources=}")
+    for answer_str in add_sources(answer_str, completion):
+        yield answer_str
 
 
 def vote(data: gr.LikeData):
@@ -310,13 +319,12 @@ def vote(data: gr.LikeData):
 
 accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False)
 sources = gr.CheckboxGroup(
-    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False
+    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False  # type: ignore
 )
 model = gr.Dropdown(
     [
         "gemini-1.5-pro",
         "gemini-1.5-flash",
-        "gpt-3.5-turbo",
         "gpt-4o-mini",
         "gpt-4o",
     ],
@@ -330,6 +338,7 @@ with gr.Blocks(
     title="Towards AI 🤖",
     analytics_enabled=True,
 ) as demo:
+    memory = gr.State(ChatMemoryBuffer.from_defaults(token_limit=120000))
     chatbot = gr.Chatbot(
         scale=1,
         placeholder="<strong>Towards AI 🤖: A Question-Answering Bot for anything AI-related</strong><br>",
@@ -341,8 +350,7 @@ with gr.Blocks(
     gr.ChatInterface(
         fn=generate_completion,
         chatbot=chatbot,
-        undo_btn=None,
-        additional_inputs=[sources, model],
+        additional_inputs=[sources, model, memory],
         additional_inputs_accordion=accordion,
     )
 
