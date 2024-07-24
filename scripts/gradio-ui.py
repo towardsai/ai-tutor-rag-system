@@ -1,3 +1,4 @@
+import logging
 import os
 import pickle
 
@@ -22,6 +23,9 @@ from tutor_prompts import system_message_openai_agent
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logfire.configure()
 
 
@@ -67,11 +71,10 @@ AVAILABLE_SOURCES = [
 ]
 
 
-# # Initialize MongoDB
 # mongo_db = (
 #     init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
 #     if MONGODB_URI
-#     else logger.warning("No mongodb uri found, you will not be able to save data.")
+#     else logfire.warn("No mongodb uri found, you will not be able to save data.")
 # )
 
 
@@ -223,10 +226,39 @@ def generate_completion(
 
 
 def vote(data: gr.LikeData):
+    collection = "liked_data-test"
     if data.liked:
         print("You upvoted this response: " + data.value["value"])
     else:
         print("You downvoted this response: " + data.value["value"])
+
+    # completion_json["liked"] = like_data.liked
+    # logger.info(f"User reported {like_data.liked=}")
+
+    # try:
+    #     cfg.mongo_db[collection].insert_one(completion_json)
+    # except:
+    #     logger.info("Something went wrong logging")
+
+
+# def save_completion(completion: Completion, history):
+#     collection = "completion_data-hf"
+
+#     # Convert completion to JSON and ignore certain columns
+#     completion_json = completion.to_json(
+#         columns_to_ignore=["embedding", "similarity", "similarity_to_answer"]
+#     )
+
+#     # Add the current date and time to the JSON
+#     completion_json["timestamp"] = datetime.utcnow().isoformat()
+#     completion_json["history"] = history
+#     completion_json["history_len"] = len(history)
+
+#     try:
+#         cfg.mongo_db[collection].insert_one(completion_json)
+#         logger.info("Completion saved to db")
+#     except Exception as e:
+#         logger.info(f"Something went wrong logging completion to db: {e}")
 
 
 accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False)
