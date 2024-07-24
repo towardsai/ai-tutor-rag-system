@@ -72,7 +72,7 @@ class CustomRetriever(BaseRetriever):
             else:
                 nodes_context.append(node)
 
-        reranker = CohereRerank(top_n=5, model="rerank-english-v3.0")
+        reranker = CohereRerank(top_n=8, model="rerank-english-v3.0")
         nodes_context = reranker.postprocess_nodes(nodes_context, query_bundle)
         logfire.info(f"Cohere raranking to {len(nodes_context)} nodes")
 
