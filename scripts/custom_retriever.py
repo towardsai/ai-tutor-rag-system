@@ -7,6 +7,8 @@ from llama_index.core import QueryBundle
 from llama_index.core.retrievers import BaseRetriever, VectorIndexRetriever
 from llama_index.core.schema import NodeWithScore, TextNode
 
+# from llama_index.postprocessor.cohere_rerank import CohereRerank
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -70,5 +72,9 @@ class CustomRetriever(BaseRetriever):
                 nodes_context.append(new_node)
             else:
                 nodes_context.append(node)
+
+        # reranker = CohereRerank(top_n=8, model="rerank-english-v3.0")
+        # nodes_context = reranker.postprocess_nodes(nodes_context, query_bundle)
+        # logfire.info(f"Cohere raranking to {len(nodes_context)} nodes")
 
         return nodes_context
