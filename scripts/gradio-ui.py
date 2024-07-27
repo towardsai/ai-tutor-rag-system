@@ -50,21 +50,25 @@ if not os.path.exists("data/chroma-db-transformers"):
 
 AVAILABLE_SOURCES_UI = [
     "HF Transformers",
+    "PEFT",
+    "TRL",
+    "LlamaIndex Docs",
     "Towards AI Blog",
-    "Wikipedia",
-    "OpenAI Docs",
-    "LangChain Docs",
-    "LLama-Index Docs",
+    # "Wikipedia",
+    # "OpenAI Docs",
+    # "LangChain Docs",
     "RAG Course",
 ]
 
 AVAILABLE_SOURCES = [
     "HF_Transformers",
+    "PEFT",
+    "TRL",
+    "LlamaIndex",
     "towards_ai_blog",
-    "wikipedia",
-    "openai_docs",
-    "langchain_docs",
-    "llama_index_docs",
+    # "wikipedia",
+    # "openai_docs",
+    # "langchain_docs",
     "rag_course",
 ]
 
@@ -360,7 +364,7 @@ def vote(data: gr.LikeData):
 
 accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False)
 sources = gr.CheckboxGroup(
-    AVAILABLE_SOURCES_UI, label="Sources", value="HF Transformers", interactive=False  # type: ignore
+    AVAILABLE_SOURCES_UI, label="Sources", value=["HF Transformers", "PEFT", "TRL", "LlamaIndex Docs"], interactive=False  # type: ignore
 )
 model = gr.Dropdown(
     [
