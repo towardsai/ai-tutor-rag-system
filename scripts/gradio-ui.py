@@ -303,7 +303,7 @@ def generate_completion(
                 retriever=custom_retriever_llamaindex,
                 metadata=ToolMetadata(
                     name="LlamaIndex_information",
-                    description="""Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of the LlamaIndex framework, includes info about fine-tuning embedding models, building chatbots, and agents, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
+                    description="""Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of the LlamaIndex framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
                 ),
             ),
         ]
