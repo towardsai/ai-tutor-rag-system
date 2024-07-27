@@ -163,7 +163,7 @@ cython_debug/
 
 .vscode/
 notebooks/mini-llama-articles/
-scripts/ai-tutor-vector-db/
+data/chroma-db**/
 .huggingface
 
 .DS_Store
@@ -172,3 +172,5 @@ scripts/ai-tutor-vector-db/
 *.json
 *.jsonl
 *.html
+*.md
+*.mdx
