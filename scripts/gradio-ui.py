@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import MessageRole
-from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.memory import ChatMemoryBuffer, ChatSummaryMemoryBuffer
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.tools import RetrieverTool, ToolMetadata
@@ -32,23 +32,21 @@ logfire.configure()
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
 
-DB_PATH = os.getenv("DB_PATH", f"scripts/ai-tutor-vector-db")
-DB_COLLECTION = os.getenv("DB_NAME", "ai-tutor-vector-db")
 
-if not os.path.exists(DB_PATH):
+if not os.path.exists("data/chroma-db-transformers"):
     # Download the vector database from the Hugging Face Hub if it doesn't exist locally
     # https://huggingface.co/datasets/towardsai-buster/ai-tutor-db/tree/main
     logfire.warn(
-        f"Vector database does not exist at {DB_PATH}, downloading from Hugging Face Hub"
+        f"Vector database does not exist at 'data/chroma-db-transformers', downloading from Hugging Face Hub"
     )
     from huggingface_hub import snapshot_download
 
     snapshot_download(
         repo_id="towardsai-buster/ai-tutor-vector-db",
-        local_dir=DB_PATH,
+        local_dir="data",
         repo_type="dataset",
     )
-    logfire.info(f"Downloaded vector database to {DB_PATH}")
+    logfire.info(f"Downloaded vector database to 'data/chroma-db-transformers'")
 
 AVAILABLE_SOURCES_UI = [
     "HF Transformers",
@@ -77,6 +75,8 @@ AVAILABLE_SOURCES = [
 #     else logfire.warn("No mongodb uri found, you will not be able to save data.")
 # )
 
+DB_PATH = os.getenv("DB_PATH", "data/chroma-db-transformers")
+DB_COLLECTION = os.getenv("DB_NAME", "chroma-db-transformers")
 
 db2 = chromadb.PersistentClient(path=DB_PATH)
 chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
@@ -95,29 +95,104 @@ vector_retriever = VectorIndexRetriever(
     use_async=True,
     embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
 )
-with open("scripts/ai-tutor-vector-db/document_dict.pkl", "rb") as f:
+with open(f"{DB_PATH}/document_dict_tf.pkl", "rb") as f:
     document_dict = pickle.load(f)
 
-custom_retriever = CustomRetriever(vector_retriever, document_dict)
+custom_retriever_tf = CustomRetriever(vector_retriever, document_dict)
+
+DB_PATH = os.getenv("DB_PATH", "data/chroma-db-peft")
+DB_COLLECTION = os.getenv("DB_NAME", "chroma-db-peft")
+
+db2 = chromadb.PersistentClient(path=DB_PATH)
+chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
+vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+    transformations=[SentenceSplitter(chunk_size=800, chunk_overlap=400)],
+    show_progress=True,
+    use_async=True,
+)
+vector_retriever = VectorIndexRetriever(
+    index=index,
+    similarity_top_k=10,
+    use_async=True,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+)
+with open(f"{DB_PATH}/document_dict_peft.pkl", "rb") as f:
+    document_dict = pickle.load(f)
+
+custom_retriever_peft = CustomRetriever(vector_retriever, document_dict)
+
+DB_PATH = os.getenv("DB_PATH", f"data/chroma-db-trl")
+DB_COLLECTION = os.getenv("DB_NAME", "chroma-db-trl")
+
+db2 = chromadb.PersistentClient(path=DB_PATH)
+chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
+vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+    transformations=[SentenceSplitter(chunk_size=800, chunk_overlap=400)],
+    show_progress=True,
+    use_async=True,
+)
+vector_retriever = VectorIndexRetriever(
+    index=index,
+    similarity_top_k=10,
+    use_async=True,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+)
+with open(f"{DB_PATH}/document_dict_trl.pkl", "rb") as f:
+    document_dict = pickle.load(f)
+
+custom_retriever_trl = CustomRetriever(vector_retriever, document_dict)
+
+DB_PATH = os.getenv("DB_PATH", "data/chroma-db-llama-index")
+DB_COLLECTION = os.getenv("DB_NAME", "chroma-db-llama-index")
+
+db2 = chromadb.PersistentClient(path=DB_PATH)
+chroma_collection = db2.get_or_create_collection(DB_COLLECTION)
+vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+    transformations=[SentenceSplitter(chunk_size=800, chunk_overlap=400)],
+    show_progress=True,
+    use_async=True,
+)
+vector_retriever = VectorIndexRetriever(
+    index=index,
+    similarity_top_k=10,
+    use_async=True,
+    embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
+)
+with open(f"{DB_PATH}/document_dict_llamaindex.pkl", "rb") as f:
+    document_dict = pickle.load(f)
+
+custom_retriever_llamaindex = CustomRetriever(vector_retriever, document_dict)
 
 
 def format_sources(completion) -> str:
     if len(completion.sources) == 0:
         return ""
 
-    # Mapping of source system names to user-friendly names
     display_source_to_ui = {
         src: ui for src, ui in zip(AVAILABLE_SOURCES, AVAILABLE_SOURCES_UI)
     }
 
     documents_answer_template: str = (
-        "📝 Here are the sources I used to answer your question:\n\n{documents}"
+        "📝 Here are the sources I used to answer your question:\n{documents}"
     )
     document_template: str = "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"
 
-    documents = "\n".join(
-        [
-            document_template.format(
+    all_documents = []
+    for source in completion.sources:
+        for src in source.raw_output:
+            document = document_template.format(
                 title=src.metadata["title"],
                 score=src.score,
                 source=display_source_to_ui.get(
@@ -125,9 +200,9 @@ def format_sources(completion) -> str:
                 ),
                 url=src.metadata["url"],
             )
-            for src in completion.sources[0].raw_output
-        ]
-    )
+            all_documents.append(document)
+
+    documents = "\n".join(all_documents)
 
     return documents_answer_template.format(documents=documents)
 
@@ -199,12 +274,34 @@ def generate_completion(
 
         query_engine_tools = [
             RetrieverTool(
-                retriever=custom_retriever,
+                retriever=custom_retriever_tf,
                 metadata=ToolMetadata(
-                    name="AI_information",
-                    description="""Only use this tool if necessary. The 'AI_information' tool returns information about the artificial intelligence (AI) field. When using this tool, the input should be the user's question rewritten as a statement. e.g. When the user asks 'How can I quantize a model?', the input should be 'Model quantization'. The input can also be adapted to focus on specific aspects or further details of the current topic under discussion. This dynamic input approach allows for a tailored exploration of AI subjects, ensuring that responses are relevant and informative. Employ this tool to fetch nuanced information on topics such as model training, fine-tuning, and LLM augmentation, thereby facilitating a rich, context-aware dialogue. """,
+                    name="Transformers_information",
+                    description="""Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch general information on topics such as language models theory (transformer architectures), tips on prompting, models, quantization, etc.""",
                 ),
-            )
+            ),
+            RetrieverTool(
+                retriever=custom_retriever_peft,
+                metadata=ToolMetadata(
+                    name="PEFT_information",
+                    description=" Useful for questions asking about efficient LLM fine-tuning. Employ this tool to fetch information on topics such as LoRA, QLoRA, etc."
+                    "",
+                ),
+            ),
+            RetrieverTool(
+                retriever=custom_retriever_trl,
+                metadata=ToolMetadata(
+                    name="TRL_information",
+                    description="""Useful for questions asking about fine-tuning LLMs with reinforcement learning (RLHF). Includes information about the Supervised Fine-tuning step (SFT), Reward Modeling step (RM), and the Proximal Policy Optimization (PPO) step.""",
+                ),
+            ),
+            RetrieverTool(
+                retriever=custom_retriever_llamaindex,
+                metadata=ToolMetadata(
+                    name="LlamaIndex_information",
+                    description="""Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of the LlamaIndex framework, includes info about fine-tuning embedding models, building chatbots, and agents, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
+                ),
+            ),
         ]
 
         agent = OpenAIAgent.from_tools(
@@ -282,7 +379,12 @@ with gr.Blocks(
     title="Towards AI 🤖",
     analytics_enabled=True,
 ) as demo:
-    memory = gr.State(ChatMemoryBuffer.from_defaults(token_limit=120000))
+
+    memory = gr.State(
+        ChatSummaryMemoryBuffer.from_defaults(
+            token_limit=120000,
+        )
+    )
     chatbot = gr.Chatbot(
         scale=1,
         placeholder="<strong>Towards AI 🤖: A Question-Answering Bot for anything AI-related</strong><br>",
