@@ -63,15 +63,19 @@ def setup_database(db_collection, dict_file_name):
 
 
 # Setup retrievers
-custom_retriever_tf = setup_database(
+custom_retriever_transformers = setup_database(
     "chroma-db-transformers",
-    "document_dict_tf.pkl",
+    "document_dict_transformers.pkl",
 )
 custom_retriever_peft = setup_database("chroma-db-peft", "document_dict_peft.pkl")
 custom_retriever_trl = setup_database("chroma-db-trl", "document_dict_trl.pkl")
-custom_retriever_llamaindex = setup_database(
-    "chroma-db-llama-index",
-    "document_dict_llamaindex.pkl",
+custom_retriever_llama_index = setup_database(
+    "chroma-db-llama_index",
+    "document_dict_llama_index.pkl",
+)
+custom_retriever_openai_cookbooks = setup_database(
+    "chroma-db-openai_cookbooks",
+    "document_dict_openai_cookbooks.pkl",
 )
 
 # Constants
@@ -79,19 +83,21 @@ CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
 MONGODB_URI = os.getenv("MONGODB_URI")
 
 AVAILABLE_SOURCES_UI = [
-    "HF Transformers",
-    "PEFT",
-    "TRL",
+    "Transformers Docs",
+    "PEFT Docs",
+    "TRL Docs",
     "LlamaIndex Docs",
+    "OpenAI Cookbooks",
     # "Towards AI Blog",
     # "RAG Course",
 ]
 
 AVAILABLE_SOURCES = [
-    "HF_Transformers",
-    "PEFT",
-    "TRL",
-    "LlamaIndex",
+    "transformers",
+    "peft",
+    "trl",
+    "llama_index",
+    "openai_cookbooks",
     # "towards_ai_blog",
     # "rag_course",
 ]
@@ -103,10 +109,11 @@ AVAILABLE_SOURCES = [
 # )
 
 __all__ = [
-    "custom_retriever_tf",
+    "custom_retriever_transformers",
     "custom_retriever_peft",
     "custom_retriever_trl",
-    "custom_retriever_llamaindex",
+    "custom_retriever_llama_index",
+    "custom_retriever_openai_cookbooks",
     "CONCURRENCY_COUNT",
     "MONGODB_URI",
     "AVAILABLE_SOURCES_UI",

@@ -10,9 +10,10 @@ from setup import (
     AVAILABLE_SOURCES,
     AVAILABLE_SOURCES_UI,
     CONCURRENCY_COUNT,
-    custom_retriever_llamaindex,
+    custom_retriever_llama_index,
+    custom_retriever_openai_cookbooks,
     custom_retriever_peft,
-    custom_retriever_tf,
+    custom_retriever_transformers,
     custom_retriever_trl,
 )
 
@@ -20,25 +21,30 @@ from setup import (
 def update_query_engine_tools(selected_sources):
     tools = []
     source_mapping = {
-        "HF Transformers": (
-            custom_retriever_tf,
+        "Transformers Docs": (
+            custom_retriever_transformers,
             "Transformers_information",
             """Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch general information on topics such as language models theory (transformer architectures), tips on prompting, models, quantization, etc.""",
         ),
-        "PEFT": (
+        "PEFT Docs": (
             custom_retriever_peft,
             "PEFT_information",
             """Useful for questions asking about efficient LLM fine-tuning. Employ this tool to fetch information on topics such as LoRA, QLoRA, etc.""",
         ),
-        "TRL": (
+        "TRL Docs": (
             custom_retriever_trl,
             "TRL_information",
             """Useful for questions asking about fine-tuning LLMs with reinforcement learning (RLHF). Includes information about the Supervised Fine-tuning step (SFT), Reward Modeling step (RM), and the Proximal Policy Optimization (PPO) step.""",
         ),
         "LlamaIndex Docs": (
-            custom_retriever_llamaindex,
+            custom_retriever_llama_index,
             "LlamaIndex_information",
             """Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of the LlamaIndex framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
+        ),
+        "OpenAI Cookbooks": (
+            custom_retriever_openai_cookbooks,
+            "openai_cookbooks_info",
+            """Useful for questions asking about accomplishing common tasks with the OpenAI API. Returns example code and guides stored in Jupyter notebooks, including info about ChatGPT GPT actions, OpenAI Assistants API,  and How to fine-tune OpenAI's GPT-4o and GPT-4o-mini models with the OpenAI API.""",
         ),
     }
 
@@ -148,9 +154,11 @@ def format_sources(completion) -> str:
             )
             all_documents.append(document)
 
-    documents = "\n".join(all_documents)
-
-    return documents_answer_template.format(documents=documents)
+    if len(all_documents) == 0:
+        return ""
+    else:
+        documents = "\n".join(all_documents)
+        return documents_answer_template.format(documents=documents)
 
 
 def save_completion(completion, history):
@@ -165,7 +173,13 @@ accordion = gr.Accordion(label="Customize Sources (Click to expand)", open=False
 sources = gr.CheckboxGroup(
     AVAILABLE_SOURCES_UI,
     label="Sources",
-    value=["HF Transformers", "PEFT", "TRL", "LlamaIndex Docs"],
+    value=[
+        "Transformers Docs",
+        "PEFT Docs",
+        "TRL Docs",
+        "LlamaIndex Docs",
+        "OpenAI Cookbooks",
+    ],
     interactive=True,
 )
 model = gr.Dropdown(
