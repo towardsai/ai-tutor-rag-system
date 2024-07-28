@@ -91,8 +91,8 @@ AVAILABLE_SOURCES_UI = [
     "PEFT Docs",
     "TRL Docs",
     "LlamaIndex Docs",
-    "OpenAI Cookbooks",
     "LangChain Docs",
+    "OpenAI Cookbooks",
     # "Towards AI Blog",
     # "RAG Course",
 ]
@@ -102,8 +102,8 @@ AVAILABLE_SOURCES = [
     "peft",
     "trl",
     "llama_index",
-    "openai_cookbooks",
     "langchain",
+    "openai_cookbooks",
     # "towards_ai_blog",
     # "rag_course",
 ]
