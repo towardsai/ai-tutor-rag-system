@@ -10,6 +10,7 @@ from setup import (
     AVAILABLE_SOURCES,
     AVAILABLE_SOURCES_UI,
     CONCURRENCY_COUNT,
+    custom_retriever_langchain,
     custom_retriever_llama_index,
     custom_retriever_openai_cookbooks,
     custom_retriever_peft,
@@ -45,6 +46,11 @@ def update_query_engine_tools(selected_sources):
             custom_retriever_openai_cookbooks,
             "openai_cookbooks_info",
             """Useful for questions asking about accomplishing common tasks with the OpenAI API. Returns example code and guides stored in Jupyter notebooks, including info about ChatGPT GPT actions, OpenAI Assistants API,  and How to fine-tune OpenAI's GPT-4o and GPT-4o-mini models with the OpenAI API.""",
+        ),
+        "LangChain Docs": (
+            custom_retriever_langchain,
+            "langchain_info",
+            """Useful for questions asking about the LangChain framework. It is the documentation of the LangChain framework, includes info about building chains, agents, and tools, using memory, prompts, callbacks, etc.""",
         ),
     }
 

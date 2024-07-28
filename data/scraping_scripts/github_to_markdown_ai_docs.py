@@ -67,6 +67,11 @@ SOURCE_CONFIGS = {
         "repo": "openai-cookbook",
         "path": "examples",
     },
+    "langchain": {
+        "owner": "langchain-ai",
+        "repo": "langchain",
+        "path": "docs/docs",
+    },
 }
 
 # GitHub Personal Access Token (replace with your own token)

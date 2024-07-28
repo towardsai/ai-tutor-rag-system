@@ -110,6 +110,18 @@ SOURCE_CONFIGS = {
         "included_root_files": [],
         "url_extension": ".ipynb",
     },
+    "langchain": {
+        "base_url": "https://python.langchain.com/v0.2/docs/",
+        "input_directory": "data/langchain_md_files",
+        "output_file": "data/langchain_data.jsonl",
+        "source_name": "langchain",
+        "use_include_list": True,
+        "included_dirs": ["how_to", "versions", "turorials", "integrations"],
+        "excluded_dirs": [],
+        "excluded_root_files": [],
+        "included_root_files": ["security.md", "concepts.mdx", "introduction.mdx"],
+        "url_extension": "",
+    },
 }
 
 

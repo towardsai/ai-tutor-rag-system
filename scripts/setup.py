@@ -77,6 +77,10 @@ custom_retriever_openai_cookbooks = setup_database(
     "chroma-db-openai_cookbooks",
     "document_dict_openai_cookbooks.pkl",
 )
+custom_retriever_langchain = setup_database(
+    "chroma-db-langchain",
+    "document_dict_langchain.pkl",
+)
 
 # Constants
 CONCURRENCY_COUNT = int(os.getenv("CONCURRENCY_COUNT", 64))
@@ -88,6 +92,7 @@ AVAILABLE_SOURCES_UI = [
     "TRL Docs",
     "LlamaIndex Docs",
     "OpenAI Cookbooks",
+    "LangChain Docs",
     # "Towards AI Blog",
     # "RAG Course",
 ]
@@ -98,6 +103,7 @@ AVAILABLE_SOURCES = [
     "trl",
     "llama_index",
     "openai_cookbooks",
+    "langchain",
     # "towards_ai_blog",
     # "rag_course",
 ]
@@ -114,6 +120,7 @@ __all__ = [
     "custom_retriever_trl",
     "custom_retriever_llama_index",
     "custom_retriever_openai_cookbooks",
+    "custom_retriever_langchain",
     "CONCURRENCY_COUNT",
     "MONGODB_URI",
     "AVAILABLE_SOURCES_UI",

@@ -1,3 +1,29 @@
+"""
+Vector Store Creation Script
+
+Purpose:
+This script processes various data sources (e.g., transformers, peft, trl, llama_index, openai_cookbooks, langchain)
+to create vector stores using Chroma and LlamaIndex. It reads data from JSONL files, creates document embeddings,
+and stores them in persistent Chroma databases for efficient retrieval.
+
+Usage:
+python script_name.py <source1> <source2> ...
+
+Example:
+python script_name.py transformers peft llama_index
+
+The script accepts one or more source names as command-line arguments. Valid source names are:
+transformers, peft, trl, llama_index, openai_cookbooks, langchain
+
+For each specified source, the script will:
+1. Read data from the corresponding JSONL file
+2. Create document embeddings
+3. Store the embeddings in a Chroma vector database
+4. Save a dictionary of documents for future reference
+
+Note: Ensure that the input JSONL files are present in the 'data' directory.
+"""
+
 import argparse
 import json
 import os
@@ -26,6 +52,10 @@ SOURCE_CONFIGS = {
     "openai_cookbooks": {
         "input_file": "data/openai_cookbooks_data.jsonl",
         "db_name": "chroma-db-openai_cookbooks",
+    },
+    "langchain": {
+        "input_file": "data/langchain_data.jsonl",
+        "db_name": "chroma-db-langchain",
     },
 }
 
