@@ -173,3 +173,4 @@ data/chroma-db**/
 *.jsonl
 *.html
 *.mdx
+*.txt
