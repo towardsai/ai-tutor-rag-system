@@ -11,8 +11,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
-
-# from utils import init_mongo_db
+from utils import init_mongo_db
 
 load_dotenv()
 
@@ -108,11 +107,11 @@ AVAILABLE_SOURCES = [
     # "rag_course",
 ]
 
-# mongo_db = (
-#     init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
-#     if MONGODB_URI
-#     else logfire.warn("No mongodb uri found, you will not be able to save data.")
-# )
+mongo_db = (
+    init_mongo_db(uri=MONGODB_URI, db_name="towardsai-buster")
+    if MONGODB_URI
+    else logfire.warn("No mongodb uri found, you will not be able to save data.")
+)
 
 __all__ = [
     "custom_retriever_transformers",
@@ -121,8 +120,8 @@ __all__ = [
     "custom_retriever_llama_index",
     "custom_retriever_openai_cookbooks",
     "custom_retriever_langchain",
+    "mongo_db",
     "CONCURRENCY_COUNT",
-    "MONGODB_URI",
     "AVAILABLE_SOURCES_UI",
     "AVAILABLE_SOURCES",
 ]
