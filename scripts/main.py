@@ -184,6 +184,7 @@ sources = gr.CheckboxGroup(
         "PEFT Docs",
         "TRL Docs",
         "LlamaIndex Docs",
+        "LangChain Docs",
         "OpenAI Cookbooks",
     ],
     interactive=True,
