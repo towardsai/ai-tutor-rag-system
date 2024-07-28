@@ -83,8 +83,8 @@ AVAILABLE_SOURCES_UI = [
     "PEFT",
     "TRL",
     "LlamaIndex Docs",
-    "Towards AI Blog",
-    "RAG Course",
+    # "Towards AI Blog",
+    # "RAG Course",
 ]
 
 AVAILABLE_SOURCES = [
@@ -92,8 +92,8 @@ AVAILABLE_SOURCES = [
     "PEFT",
     "TRL",
     "LlamaIndex",
-    "towards_ai_blog",
-    "rag_course",
+    # "towards_ai_blog",
+    # "rag_course",
 ]
 
 # mongo_db = (
