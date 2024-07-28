@@ -1,4 +1,3 @@
-import logging
 import time
 from typing import List
 
@@ -7,9 +6,6 @@ from llama_index.core import QueryBundle
 from llama_index.core.retrievers import BaseRetriever, VectorIndexRetriever
 from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.postprocessor.cohere_rerank import CohereRerank
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 class CustomRetriever(BaseRetriever):

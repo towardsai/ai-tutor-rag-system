@@ -5,7 +5,7 @@ colorFrom: gray
 colorTo: pink
 sdk: gradio
 sdk_version: 4.39.0
-app_file: scripts/gradio-ui.py
+app_file: scripts/main.py
 pinned: false
 ---
 
