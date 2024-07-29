@@ -25,7 +25,7 @@ def update_query_engine_tools(selected_sources):
         "Transformers Docs": (
             custom_retriever_transformers,
             "Transformers_information",
-            """Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch general information on topics such as language models theory (transformer architectures), tips on prompting, models, quantization, etc.""",
+            """Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch information on topics such as language models (LLMs) models such as Llama3 and theory (transformer architectures), tips on prompting, quantization, etc.""",
         ),
         "PEFT Docs": (
             custom_retriever_peft,
@@ -40,7 +40,7 @@ def update_query_engine_tools(selected_sources):
         "LlamaIndex Docs": (
             custom_retriever_llama_index,
             "LlamaIndex_information",
-            """Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of the LlamaIndex framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
+            """Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of a framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
         ),
         "OpenAI Cookbooks": (
             custom_retriever_openai_cookbooks,
