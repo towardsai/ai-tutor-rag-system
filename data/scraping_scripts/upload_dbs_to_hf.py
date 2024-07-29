@@ -15,7 +15,6 @@ The script will:
 
 Configuration:
 - The script is set to upload to the "towardsai-buster/test-data" dataset repository. 
-- It ignores files with extensions .jsonl, .py, .txt, and .ipynb.
 - It deletes all existing files in the repository before uploading (due to delete_patterns=["*"]).
 """
 
@@ -30,5 +29,5 @@ api.upload_folder(
     multi_commits=True,
     multi_commits_verbose=True,
     delete_patterns=["*"],
-    ignore_patterns=["*.jsonl", "*.py", "*.txt", "*.ipynb"],
+    ignore_patterns=["*.jsonl", "*.py", "*.txt", "*.ipynb", "*.md", "*.pyc"],
 )

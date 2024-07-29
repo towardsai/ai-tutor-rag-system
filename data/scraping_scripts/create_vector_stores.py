@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import pickle
+import shutil
 from typing import Dict, List
 
 import chromadb
@@ -69,7 +70,7 @@ def create_docs(input_file: str) -> List[Document]:
                 Document(
                     doc_id=data["doc_id"],
                     text=data["content"],
-                    metadata={
+                    metadata={  # type: ignore
                         "url": data["url"],
                         "title": data["name"],
                         "tokens": data["tokens"],
@@ -95,13 +96,21 @@ def create_docs(input_file: str) -> List[Document]:
 
 def process_source(source: str):
     config = SOURCE_CONFIGS[source]
+
     input_file = config["input_file"]
     db_name = config["db_name"]
+    db_path = f"data/{db_name}"
 
     print(f"Processing source: {source}")
 
     documents = create_docs(input_file)
     print(f"Created {len(documents)} documents")
+
+    # Check if the folder exists and delete it
+    if os.path.exists(db_path):
+        print(f"Existing database found at {db_path}. Deleting...")
+        shutil.rmtree(db_path)
+        print(f"Deleted existing database at {db_path}")
 
     # Create Chroma client and collection
     chroma_client = chromadb.PersistentClient(path=f"data/{db_name}")

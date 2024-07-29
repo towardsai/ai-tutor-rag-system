@@ -38,7 +38,10 @@ from typing import Dict, List
 
 import nbformat
 import requests
+from dotenv import load_dotenv
 from nbconvert import MarkdownExporter
+
+load_dotenv()
 
 # Configuration for different sources
 SOURCE_CONFIGS = {
@@ -75,7 +78,7 @@ SOURCE_CONFIGS = {
 }
 
 # GitHub Personal Access Token (replace with your own token)
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # Headers for authenticated requests
 HEADERS = {
