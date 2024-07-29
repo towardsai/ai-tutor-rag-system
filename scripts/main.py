@@ -138,6 +138,8 @@ def format_sources(completion) -> str:
     if len(completion.sources) == 0:
         return ""
 
+    logfire.info(f"Formatting sources: {completion.sources}")
+
     display_source_to_ui = {
         src: ui for src, ui in zip(AVAILABLE_SOURCES, AVAILABLE_SOURCES_UI)
     }
