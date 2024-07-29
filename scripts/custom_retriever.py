@@ -73,13 +73,18 @@ class CustomRetriever(BaseRetriever):
             else:
                 nodes_context.append(node)
 
-        reranker = CohereRerank(top_n=5, model="rerank-english-v3.0")
-        nodes_context = reranker.postprocess_nodes(nodes_context, query_bundle)
-        nodes_filtered = []
-        for node in nodes_context:
-            if node.score < 0.15:
-                continue
-            else:
-                nodes_filtered.append(node)
-        logfire.info(f"Cohere raranking to {len(nodes_filtered)} nodes")
-        return nodes_filtered
+        try:
+            reranker = CohereRerank(top_n=5, model="rerank-english-v3.0")
+            nodes_context = reranker.postprocess_nodes(nodes_context, query_bundle)
+            nodes_filtered = []
+            for node in nodes_context:
+                if node.score < 0.10:  # type: ignore
+                    continue
+                else:
+                    nodes_filtered.append(node)
+            logfire.info(f"Cohere raranking to {len(nodes_filtered)} nodes")
+
+            return nodes_filtered
+        except Exception as e:
+            logfire.error(f"Error reranking nodes with Cohere: {e}")
+            return nodes_context
