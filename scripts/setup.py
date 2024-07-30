@@ -51,7 +51,7 @@ def setup_database(db_collection, dict_file_name):
     )
     vector_retriever = VectorIndexRetriever(
         index=index,
-        similarity_top_k=10,
+        similarity_top_k=15,
         use_async=True,
         embed_model=OpenAIEmbedding(model="text-embedding-3-large", mode="similarity"),
     )

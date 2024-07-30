@@ -1,3 +1,5 @@
+import pdb
+
 import gradio as gr
 import logfire
 from llama_index.agent.openai import OpenAIAgent
@@ -148,7 +150,6 @@ def format_sources(completion) -> str:
         "📝 Here are the sources I used to answer your question:\n{documents}"
     )
     document_template: str = "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"
-
     all_documents = []
     for source in completion.sources:
         for src in source.raw_output:
