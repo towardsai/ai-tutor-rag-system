@@ -209,7 +209,7 @@ with gr.Blocks(
 ) as demo:
 
     memory = gr.State(
-        ChatSummaryMemoryBuffer.from_defaults(
+        lambda: ChatSummaryMemoryBuffer.from_defaults(
             token_limit=120000,
         )
     )
