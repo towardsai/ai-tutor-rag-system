@@ -6,53 +6,59 @@ from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.llms import MessageRole
 from llama_index.core.memory import ChatSummaryMemoryBuffer
 from llama_index.core.tools import RetrieverTool, ToolMetadata
+from llama_index.core.vector_stores import (
+    FilterCondition,
+    FilterOperator,
+    MetadataFilter,
+    MetadataFilters,
+)
 from llama_index.llms.openai import OpenAI
 from prompts import system_message_openai_agent
-from setup import (
+from setup import (  # custom_retriever_langchain,; custom_retriever_llama_index,; custom_retriever_openai_cookbooks,; custom_retriever_peft,; custom_retriever_transformers,; custom_retriever_trl,
     AVAILABLE_SOURCES,
     AVAILABLE_SOURCES_UI,
     CONCURRENCY_COUNT,
-    custom_retriever_langchain,
-    custom_retriever_llama_index,
-    custom_retriever_openai_cookbooks,
-    custom_retriever_peft,
-    custom_retriever_transformers,
-    custom_retriever_trl,
+    custom_retriever_all_sources,
 )
 
 
 def update_query_engine_tools(selected_sources):
     tools = []
     source_mapping = {
-        "Transformers Docs": (
-            custom_retriever_transformers,
-            "Transformers_information",
-            """Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch information on topics such as language models (LLMs) models such as Llama3 and theory (transformer architectures), tips on prompting, quantization, etc.""",
-        ),
-        "PEFT Docs": (
-            custom_retriever_peft,
-            "PEFT_information",
-            """Useful for questions asking about efficient LLM fine-tuning. Employ this tool to fetch information on topics such as LoRA, QLoRA, etc.""",
-        ),
-        "TRL Docs": (
-            custom_retriever_trl,
-            "TRL_information",
-            """Useful for questions asking about fine-tuning LLMs with reinforcement learning (RLHF). Includes information about the Supervised Fine-tuning step (SFT), Reward Modeling step (RM), and the Proximal Policy Optimization (PPO) step.""",
-        ),
-        "LlamaIndex Docs": (
-            custom_retriever_llama_index,
-            "LlamaIndex_information",
-            """Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of a framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
-        ),
-        "OpenAI Cookbooks": (
-            custom_retriever_openai_cookbooks,
-            "openai_cookbooks_info",
-            """Useful for questions asking about accomplishing common tasks with the OpenAI API. Returns example code and guides stored in Jupyter notebooks, including info about ChatGPT GPT actions, OpenAI Assistants API,  and How to fine-tune OpenAI's GPT-4o and GPT-4o-mini models with the OpenAI API.""",
-        ),
-        "LangChain Docs": (
-            custom_retriever_langchain,
-            "langchain_info",
-            """Useful for questions asking about the LangChain framework. It is the documentation of the LangChain framework, includes info about building chains, agents, and tools, using memory, prompts, callbacks, etc.""",
+        # "Transformers Docs": (
+        #     custom_retriever_transformers,
+        #     "Transformers_information",
+        #     """Useful for general questions asking about the artificial intelligence (AI) field. Employ this tool to fetch information on topics such as language models (LLMs) models such as Llama3 and theory (transformer architectures), tips on prompting, quantization, etc.""",
+        # ),
+        # "PEFT Docs": (
+        #     custom_retriever_peft,
+        #     "PEFT_information",
+        #     """Useful for questions asking about efficient LLM fine-tuning. Employ this tool to fetch information on topics such as LoRA, QLoRA, etc.""",
+        # ),
+        # "TRL Docs": (
+        #     custom_retriever_trl,
+        #     "TRL_information",
+        #     """Useful for questions asking about fine-tuning LLMs with reinforcement learning (RLHF). Includes information about the Supervised Fine-tuning step (SFT), Reward Modeling step (RM), and the Proximal Policy Optimization (PPO) step.""",
+        # ),
+        # "LlamaIndex Docs": (
+        #     custom_retriever_llama_index,
+        #     "LlamaIndex_information",
+        #     """Useful for questions asking about retrieval augmented generation (RAG) with LLMs and embedding models. It is the documentation of a framework, includes info about fine-tuning embedding models, building chatbots, and agents with llms, using vector databases, embeddings, information retrieval with cosine similarity or bm25, etc.""",
+        # ),
+        # "OpenAI Cookbooks": (
+        #     custom_retriever_openai_cookbooks,
+        #     "openai_cookbooks_info",
+        #     """Useful for questions asking about accomplishing common tasks with the OpenAI API. Returns example code and guides stored in Jupyter notebooks, including info about ChatGPT GPT actions, OpenAI Assistants API,  and How to fine-tune OpenAI's GPT-4o and GPT-4o-mini models with the OpenAI API.""",
+        # ),
+        # "LangChain Docs": (
+        #     custom_retriever_langchain,
+        #     "langchain_info",
+        #     """Useful for questions asking about the LangChain framework. It is the documentation of the LangChain framework, includes info about building chains, agents, and tools, using memory, prompts, callbacks, etc.""",
+        # ),
+        "All Sources": (
+            custom_retriever_all_sources,
+            "all_sources_info",
+            """Useful for questions asking about information in the field of AI.""",
         ),
     }
 
@@ -80,9 +86,7 @@ def generate_completion(
     memory,
 ):
     with logfire.span("Running query"):
-        logfire.info(f"query: {query}")
-        logfire.info(f"model: {model}")
-        logfire.info(f"sources: {sources}")
+        logfire.info(f"User query: {query}")
 
         chat_list = memory.get()
 
@@ -102,7 +106,34 @@ def generate_completion(
         client = llm._get_client()
         logfire.instrument_openai(client)
 
-        query_engine_tools = update_query_engine_tools(sources)
+        query_engine_tools = update_query_engine_tools(["All Sources"])
+
+        filter_list = []
+        source_mapping = {
+            "Transformers Docs": "transformers",
+            "PEFT Docs": "peft",
+            "TRL Docs": "trl",
+            "LlamaIndex Docs": "llama_index",
+            "LangChain Docs": "langchain",
+            "OpenAI Cookbooks": "openai_cookbooks",
+            "Towards AI Blog": "tai_blog",
+        }
+
+        for source in sources:
+            if source in source_mapping:
+                filter_list.append(
+                    MetadataFilter(
+                        key="source",
+                        operator=FilterOperator.EQ,
+                        value=source_mapping[source],
+                    )
+                )
+
+        filters = MetadataFilters(
+            filters=filter_list,
+            condition=FilterCondition.OR,
+        )
+        query_engine_tools[0].retriever._vector_retriever._filters = filters
 
         agent = OpenAIAgent.from_tools(
             llm=llm,
@@ -151,8 +182,16 @@ def format_sources(completion) -> str:
     )
     document_template: str = "[🔗 {source}: {title}]({url}), relevance: {score:2.2f}"
     all_documents = []
-    for source in completion.sources:
-        for src in source.raw_output:
+    for source in completion.sources:  # looping over list[ToolOutput]
+        if isinstance(source.raw_output, Exception):
+            logfire.error(f"Error in source output: {source.raw_output}")
+            # pdb.set_trace()
+            continue
+
+        if not isinstance(source.raw_output, list):
+            logfire.warn(f"Unexpected source output type: {type(source.raw_output)}")
+            continue
+        for src in source.raw_output:  # looping over list[NodeWithScore]
             document = document_template.format(
                 title=src.metadata["title"],
                 score=src.score,
@@ -189,13 +228,13 @@ sources = gr.CheckboxGroup(
         "LlamaIndex Docs",
         "LangChain Docs",
         "OpenAI Cookbooks",
+        # "All Sources",
     ],
     interactive=True,
 )
 model = gr.Dropdown(
     [
         "gpt-4o-mini",
-        "gpt-4o",
     ],
     label="Model",
     value="gpt-4o-mini",
