@@ -8,7 +8,6 @@ import chromadb
 import logfire
 from custom_retriever import CustomRetriever
 from dotenv import load_dotenv
-from evaluate_rag_system import AsyncKeywordTableSimpleRetriever
 from llama_index.core import Document, SimpleKeywordTableIndex, VectorStoreIndex
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
