@@ -228,6 +228,7 @@ sources = gr.CheckboxGroup(
         "LlamaIndex Docs",
         "LangChain Docs",
         "OpenAI Cookbooks",
+        "Towards AI Blog",
         # "All Sources",
     ],
     interactive=True,
