@@ -1,76 +1,26 @@
----
-title: AI Tutor Chatbot
-emoji: 🧑🏻‍🏫
-colorFrom: gray
-colorTo: pink
-sdk: gradio
-sdk_version: 4.44.0
-app_file: scripts/main.py
-pinned: false
----
+# AI Tutor RAG System
 
-This repository contains the notebooks for the RAG (Retrieval-Augmented Generation) course in the [notebooks](./notebooks) directory.
+Welcome to the **AI Tutor RAG (Retrieval-Augmented Generation) System** repository! This repository contains a collection of Jupyter notebooks designed to support the RAG course, focusing on techniques for enhancing AI models with retrieval-based methods.
 
-### Gradio UI Chatbot
+## Course Notebooks
 
-A Gradio UI for the chatbot is available in [scripts/main.py](./scripts/main.py).
+You can find all the course notebooks in the [notebooks](./notebooks) directory. These notebooks cover various aspects of building and fine-tuning RAG models, providing both theoretical background and practical, hands-on examples.
 
-The Gradio demo is deployed on Hugging Face Spaces at: [AI Tutor Chatbot on Hugging Face](https://huggingface.co/spaces/towardsai-buster/ai-tutor-chatbot).
+## Running the Notebooks
 
-**Note:** A GitHub Action automatically deploys the Gradio demo when changes are pushed to the `scripts` folder.
+You have two options for running the code in these notebooks:
 
-### Installation (for Gradio UI)
+1. **Run Locally**: You can clone the repository and run the notebooks on your local machine. To do this, ensure you have a Python installation with the necessary dependencies.
+2. **Run on Google Colab**: Each notebook includes a link at the top to open it directly in Google Colab, making it easy to run without local setup.
 
-1. **Create a new Python environment:**
+## About This Repository
 
-   ```bash
-   python -m venv .venv
-   ```
+- **Audience**: Designed for students and professionals interested in AI and natural language processing.
+- **Topics Covered**: The notebooks cover foundational and advanced concepts in retrieval-augmented generation, including:
+  - Data retrieval techniques
+  - Model integration with retrieval systems
+  - Practical applications of RAG in real-world scenarios
 
-2. **Activate the environment:**
+## Getting Started
 
-   For macOS and Linux:
-
-   ```bash
-   source .venv/bin/activate
-   ```
-
-   For Windows:
-
-   ```bash
-   .venv\Scripts\activate
-   ```
-
-3. **Install the dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Usage (for Gradio UI)
-
-1. **Set environment variables:**
-
-   Before running the application, set up the required API keys:
-
-   For macOS and Linux:
-
-   ```bash
-   export OPENAI_API_KEY=your_openai_api_key_here
-   export COHERE_API_KEY=your_cohere_api_key_here
-   ```
-
-   For Windows:
-
-   ```bash
-   set OPENAI_API_KEY=your_openai_api_key_here
-   set COHERE_API_KEY=your_cohere_api_key_here
-   ```
-
-2. **Run the application:**
-
-   ```bash
-   python scripts/main.py
-   ```
-
-   This command starts the Gradio interface for the AI Tutor chatbot.
+Clone the repository and explore the notebooks at your own pace. Whether running them locally or in Colab, these notebooks will guide you step-by-step, enhancing your learning experience.
