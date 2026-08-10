@@ -1,0 +1,21 @@
+# The repository root .gitignore excludes *.json and *.jsonl (they are notebook
+# data artifacts everywhere else in this repo). The context-lab package data is
+# different: the synthetic battery and the pre-run results bundle are SOURCE.
+# They must be committed, or `pip install` from the GitHub URL ships a package
+# with no battery and no offline path.
+#
+# Negations are scoped to this package's data directory only, so the root rule
+# still protects the rest of the repo.
+!src/context_lab/data/
+!src/context_lab/data/**/*.jsonl
+!src/context_lab/data/**/*.json
+
+# Local experiment output stays out of git.
+runs/
+prerun_runs/
+report.md
+dist/
+build/
+*.egg-info/
+__pycache__/
+.pytest_cache/

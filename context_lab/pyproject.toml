@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "context-lab"
+version = "0.1.0"
+description = "Teaching harness for context-engineering experiments: run a multi-turn planted-facts battery under pluggable memory configurations, then gate, grade, and report offline from saved trace bundles."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Towards AI" }]
+keywords = ["llm", "context-engineering", "evals", "memory", "teaching"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    # Needed only to RUN a battery or the LLM judge. The validity gate, the code
+    # checks, and the report are pure standard library over saved JSON, which is
+    # what makes the offline path work with no keys and no network.
+    "google-genai>=2.16.0,<3",
+    "httpx>=0.27,<0.29",
+    "pydantic>=2.7,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+context-lab = "context_lab.cli:main"
+
+[project.urls]
+Repository = "https://github.com/towardsai/ai-tutor-rag-system"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/context_lab"]
+# The repo root .gitignore excludes *.json/*.jsonl, and hatchling honors VCS
+# ignore rules, which silently shipped a wheel with no battery and no pre-run
+# bundle. `artifacts` forces the package's own data back in. The scoped
+# .gitignore next to this file fixes the same problem for git.
+artifacts = [
+    "src/context_lab/data/**/*.jsonl",
+    "src/context_lab/data/**/*.json",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/context_lab", "tests", "README.md", "pyproject.toml"]
+artifacts = [
+    "src/context_lab/data/**/*.jsonl",
+    "src/context_lab/data/**/*.json",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
