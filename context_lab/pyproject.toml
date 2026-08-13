@@ -20,7 +20,11 @@ dependencies = [
     # Needed only to RUN a battery or the LLM judge. The validity gate, the code
     # checks, and the report are pure standard library over saved JSON, which is
     # what makes the offline path work with no keys and no network.
-    "google-genai>=2.16.0,<3",
+    # Floors track the course-wide pin set (checked August 13, 2026):
+    # google-genai 2.18.0, pydantic 2.13.4. httpx is used only by the raw-HTTP
+    # OpenAI-compatible provider below, so it is unaffected by the openai SDK's
+    # 3.x switch to httpx2.
+    "google-genai>=2.18.0,<3",
     "httpx>=0.27,<0.29",
     "pydantic>=2.7,<3",
 ]

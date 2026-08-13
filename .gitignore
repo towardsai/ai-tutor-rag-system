@@ -172,3 +172,6 @@ notebooks/mini-llama-articles/
 *.jsonl
 *.html
 *.mdx
+# Local run artifacts from Knowledge_Base_Browsing.ipynb
+notebooks/kb_demo/
+notebooks/kb_demo_chroma/
