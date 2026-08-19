@@ -98,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--config", action="append", required=True, help="repeatable; see --list-configs"
     )
-    p_run.add_argument("--provider", default="gemini", choices=["gemini", "deepseek", "ollama"])
+    p_run.add_argument("--provider", default="deepseek", choices=["deepseek", "gemini", "ollama"])
     p_run.add_argument("--model", default=None)
     p_run.add_argument("--out", default="runs")
     p_run.set_defaults(func=cmd_run)

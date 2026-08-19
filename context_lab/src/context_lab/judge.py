@@ -13,9 +13,10 @@ version inherits:
   labels (the production gate is >=90% agreement on held-out human grades).
   Nothing here validates the judge for you; read its verdicts next to the code
   checks and adjudicate disagreements yourself.
-- Here the judge model defaults to the same cheap model that produced the
-  answers. That is fine for learning the pattern and risky for real
-  conclusions; production used a stronger, separate judge.
+- Here the judge is a small model (``gemini-3.5-flash-lite``). It is at least a
+  different family from the DeepSeek model under test, so it cannot recognize
+  its own prose, but it is still a cheap grader. Production used a stronger,
+  validated judge.
 """
 
 from __future__ import annotations

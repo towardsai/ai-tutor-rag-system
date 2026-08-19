@@ -42,9 +42,9 @@ pip install -e /path/to/ai-tutor-rag-system/context_lab
 
 ## Start with no API key at all
 
-The package ships one pre-run results bundle, produced by a real (cheap) Gemini
-run. Unpack it and use the whole offline half of the pipeline before you spend
-anything:
+The package ships one pre-run results bundle, produced by a real (cheap) DeepSeek
+run on 2026-08-19. Unpack it and use the whole offline half of the pipeline
+before you spend anything:
 
 ```bash
 context-lab prerun --out prerun_runs
@@ -61,7 +61,8 @@ reject a run is part of the exercise.
 ## Run it yourself
 
 ```bash
-export GEMINI_API_KEY=...
+export DEEPSEEK_API_KEY=...
+export GEMINI_API_KEY=...     # only for `grade --judge`
 context-lab run --config full_history --config summarize --out runs
 context-lab gate   runs/*
 context-lab grade  runs/*            # add --judge for the LLM judge
@@ -72,17 +73,19 @@ context-lab report runs/* --out runs/report.md
 
 This package sits deliberately outside the course's three-provider pattern.
 Context-engineering economics are cache-discount economics, and cache discounts
-live on specific providers.
+live on specific providers. Worse, a provider that grants the discount does not
+necessarily *report* it, and a discount you cannot see is a discount you cannot
+put in a table.
 
 | provider | status | notes |
 |---|---|---|
-| `gemini` | tested | `gemini-3.5-flash-lite`, the default. Implicit caching. |
-| `deepseek` | code present, untested here | `deepseek-v4-flash`, roughly a 50x cache-hit discount. |
-| `ollama` | code present, untested here | free and local; set `OLLAMA_BASE_URL`. |
+| `deepseek` | tested, the default | `deepseek-v4-flash`. Reports `prompt_cache_hit_tokens` on every call; ~31x cache discount. Thinking is disabled (see `get_provider`). |
+| `gemini` | tested, and the judge backend | `gemini-3.5-flash`. Implicit caching, reported intermittently; `gemini-3.5-flash-lite` and `gemini-3.7-flash` report nothing at all (measured 2026-08-19). |
+| `ollama` | code present, untested here | free and local; set `OLLAMA_BASE_URL`. No cache accounting, and $0 anyway. |
 
-The DeepSeek and Ollama backends speak the OpenAI-compatible chat API over plain
-HTTP. They are configured and ready, but the course's executed runs used Gemini
-only, so treat them as starting points rather than verified paths.
+DeepSeek and Ollama share one backend, `OpenAICompatProvider`, which speaks the
+OpenAI-compatible chat API over plain HTTP. Point it at any other endpoint of
+that shape by copying four lines in `get_provider`.
 
 ## The memory configurations
 
@@ -98,19 +101,20 @@ simplified to teaching size.
 
 ## The battery
 
-`battery_docs_v1.jsonl` is a 15-turn synthetic session for a fictional
+`battery_docs_v1.jsonl` is a 17-turn synthetic session for a fictional
 documentation-search project. It is **100% synthetic and authored for this
 course**: no real user, student, or customer text appears anywhere in it, and
 the "documentation excerpts" are original prose written for this battery.
 
-- **Turns 1-3 plant three facts**: the project targets Python 3.11 only; no
-  dependency may need a C extension; all code must use type hints and the
-  `logging` module rather than `print()`.
-- **Turns 4-11 are filler** technical Q&A, three of them carrying large document
-  payloads that stand in for tool outputs.
+- **Turns 1-3 plant five facts**: the project targets Python 3.11 only; no
+  dependency may need a C extension; collection names carry a `ds_` prefix; all
+  code must use type hints and the `logging` module rather than `print()`; and
+  pandas is banned from the image.
+- **Turns 4-11 are filler** technical Q&A, three of them (turns 4, 6, and 9)
+  carrying large document payloads that stand in for tool outputs.
 - **Turn 9 updates a fact**: the vector store port moves from 8010 to 9010.
-- **Turns 12-15 are probes**: one `fact_recall` for each planted fact, one
-  `fact_update`, one `preference_compliance`.
+- **Turns 12-17 are probes**: three `fact_recall`, one `fact_update`, and two
+  `preference_compliance`.
 
 Facts planted early and probed late is the whole design. It is what makes the
 difference between memory policies measurable at all.
@@ -139,8 +143,8 @@ One JSON object per turn in `bundles.jsonl`:
   "run_id": "docsearch_v1|turn07",
   "session_id": "docsearch_v1",
   "config": "summarize",
-  "provider": "gemini",
-  "model": "gemini-3.5-flash-lite",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
   "turn_index": 7,
   "started_at": "2026-07-30T12:00:00+00:00",
   "latency_ms": 2140,
@@ -170,8 +174,10 @@ could ever need is on disk before the grader exists.
   after it reproduces human labels at a preset agreement bar. Nothing here does
   that for you. Read judge verdicts next to the code checks and adjudicate
   disagreements yourself.
-- **The judge defaults to the same cheap model that produced the answers.** Fine
-  for learning the pattern, risky for real conclusions.
+- **The judge is a small model.** It defaults to `gemini-3.5-flash-lite`, which
+  is at least a different family from the DeepSeek model under test, but it is
+  still a cheap grader. In the shipped bundle it disagrees with the code checks
+  on two `summarize` probes, and on both it is the stricter of the two.
 - **Latency is confounded.** Arms run sequentially against a shared API, so
   wall-clock differences include provider load. Tokens and cost are the honest
   efficiency headline.

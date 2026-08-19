@@ -31,8 +31,16 @@ GATE_NA = "n/a (gate)"
 
 
 def _fmt_usd(value: float | None) -> str:
+    """Four decimals, widened when four would round the number to nothing.
+
+    A per-turn cost on a cheap model with a deep cache discount lands in the
+    tenths of a cent, where ``$0.0005`` against ``$0.0008`` hides most of the
+    difference the row exists to show.
+    """
     if value is None:
         return NA
+    if value and abs(value) < 0.001:
+        return f"${value:.6f}"
     return f"${value:.4f}"
 
 

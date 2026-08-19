@@ -2,10 +2,12 @@
 
 This lesson's experiments sit deliberately outside the course's three-provider
 pattern: context-engineering economics are cache-discount economics, and those
-live on specific providers. The tested path is Gemini (``google-genai``). The
-DeepSeek and Ollama backends speak the OpenAI-compatible chat API over plain
-HTTP; they are configured and ready but NOT covered by the course's executed
-runs. Treat them as starting points, not verified paths.
+live on specific providers. The tested path is DeepSeek V4 Flash over the
+OpenAI-compatible chat API, chosen because it is the backend that reports
+per-call prefix-cache accounting on every call. Gemini (``google-genai``) is
+also executed and is the judge backend, but its implicit cache reports
+intermittently. Ollama speaks the same OpenAI-compatible API and is configured
+but NOT covered by the course's executed runs.
 
 Every backend implements one method::
 
@@ -31,7 +33,7 @@ class GenerateResult:
 
 
 class GeminiProvider:
-    """Google Gemini via the ``google-genai`` SDK. The tested backend.
+    """Google Gemini via the ``google-genai`` SDK. Executed, and the judge backend.
 
     Reads ``GEMINI_API_KEY`` (or ``GOOGLE_API_KEY``) from the environment.
 
@@ -40,14 +42,25 @@ class GeminiProvider:
     at all, and the difference matters: ``0`` means "measured, no hits" while
     ``None`` means "not measured". We preserve it, because a report that prints
     "0% cache hits" for unreported data is asserting something the
-    instrumentation never observed. Verified on 2026-07-30: three back-to-back
-    calls sharing an identical 8,108-token prefix on ``gemini-3.5-flash-lite``
-    all returned ``None`` here.
+    instrumentation never observed.
+
+    Gemini's implicit cache is opportunistic, and what it reports varies by
+    model. Four back-to-back calls sharing an identical ~6.5k-token prefix,
+    measured 2026-08-19:
+
+    - ``gemini-3.5-flash-lite``: ``None`` on every call (also 2026-07-30, at an
+      8,108-token prefix).
+    - ``gemini-3.7-flash``: ``None`` on every call.
+    - ``gemini-3.5-flash``: 4,068 cached tokens on two of four calls, ``None``
+      on the others.
+
+    So Gemini can show the mechanism but cannot be relied on to price it. Use
+    DeepSeek when the cost comparison is the point.
     """
 
     name = "gemini"
 
-    def __init__(self, model: str = "gemini-3.5-flash-lite"):
+    def __init__(self, model: str = "gemini-3.5-flash"):
         from google import genai
 
         self.model = model
@@ -98,22 +111,34 @@ class GeminiProvider:
 class OpenAICompatProvider:
     """Any OpenAI-compatible ``/chat/completions`` endpoint over plain HTTP.
 
-    Used for the DeepSeek and Ollama configurations. UNTESTED in the course's
-    executed runs; the request/usage shapes follow each provider's API docs.
-    DeepSeek reports prefix-cache hits as ``prompt_cache_hit_tokens``; Ollama
+    Used for the DeepSeek and Ollama configurations. DeepSeek is executed;
+    Ollama is configured and unexercised by our runs. DeepSeek reports
+    prefix-cache hits as ``prompt_cache_hit_tokens`` on every call; Ollama
     reports no cache field (and costs $0 anyway).
+
+    ``extra_body`` is merged into the request, which is how provider-specific
+    switches stay out of the generic code path. See ``get_provider`` for the
+    one switch we set.
     """
 
-    def __init__(self, base_url: str, model: str, api_key: str | None, name: str):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str | None,
+        name: str,
+        extra_body: dict | None = None,
+    ):
         import httpx
 
         self.name = name
         self.model = model
         self._base_url = base_url.rstrip("/")
+        self._extra_body = dict(extra_body or {})
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        self._client = httpx.Client(headers=headers, timeout=120.0)
+        self._client = httpx.Client(headers=headers, timeout=180.0)
 
     def generate(
         self,
@@ -128,6 +153,7 @@ class OpenAICompatProvider:
             "temperature": 0.3,
             "max_tokens": max_output_tokens,
         }
+        payload.update(self._extra_body)
         start = time.monotonic()
         response = self._client.post(
             f"{self._base_url}/chat/completions", json=payload
@@ -135,10 +161,25 @@ class OpenAICompatProvider:
         response.raise_for_status()
         latency_ms = int((time.monotonic() - start) * 1000)
         data = response.json()
+        choice = data["choices"][0]
+        message = choice.get("message") or {}
+        text = message.get("content") or ""
+        # A reasoning model can spend the whole output budget on hidden
+        # reasoning and return an empty answer with finish_reason="length".
+        # Grading that as a memory failure would blame the policy for an
+        # instrumentation problem, so raise instead: the runner records the
+        # turn as an error and the report counts it in the errors row.
+        if not text.strip() and (message.get("reasoning_content") or "").strip():
+            raise RuntimeError(
+                f"{self.name}/{self.model} returned reasoning but no answer "
+                f"(finish_reason={choice.get('finish_reason')!r}). The output "
+                f"budget of {max_output_tokens} tokens was consumed by hidden "
+                f"reasoning. Raise max_output_tokens or disable thinking."
+            )
         usage = data.get("usage") or {}
         cached = usage.get("prompt_cache_hit_tokens")
         return GenerateResult(
-            text=data["choices"][0]["message"]["content"] or "",
+            text=text,
             usage={
                 "input_tokens": int(usage.get("prompt_tokens") or 0),
                 "output_tokens": int(usage.get("completion_tokens") or 0),
@@ -151,9 +192,9 @@ class OpenAICompatProvider:
 
 
 def get_provider(name: str, model: str | None = None):
-    """Build a provider by name: ``gemini`` (tested), ``deepseek``, ``ollama``."""
+    """Build a provider by name: ``deepseek`` (default), ``gemini``, ``ollama``."""
     if name == "gemini":
-        return GeminiProvider(model or "gemini-3.5-flash-lite")
+        return GeminiProvider(model or "gemini-3.5-flash")
     if name == "deepseek":
         return OpenAICompatProvider(
             base_url="https://api.deepseek.com",
@@ -162,6 +203,12 @@ def get_provider(name: str, model: str | None = None):
             model=model or "deepseek-v4-flash",
             api_key=os.environ.get("DEEPSEEK_API_KEY"),
             name="deepseek",
+            # V4 Flash is a hybrid reasoning model. Left enabled, hidden
+            # reasoning is billed as output on every turn and can swallow the
+            # whole 1,024-token budget, and the extra output tokens are charged
+            # identically to both arms, which buries the input-side difference
+            # this lab exists to measure. Off, the comparison is clean.
+            extra_body={"thinking": {"type": "disabled"}},
         )
     if name == "ollama":
         return OpenAICompatProvider(

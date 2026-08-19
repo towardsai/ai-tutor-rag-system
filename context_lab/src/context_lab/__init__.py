@@ -18,7 +18,7 @@ Typical use::
     )
 
     record = load_battery(default_battery_path())[0]
-    provider = get_provider("gemini")
+    provider = get_provider("deepseek")
     for name in ("full_history", "summarize"):
         run_session(record, CONFIGS[name], provider, f"runs/{name}")
 
@@ -64,7 +64,7 @@ __all__ = [
 ]
 
 
-def get_provider(name: str = "gemini", model: str | None = None):
+def get_provider(name: str = "deepseek", model: str | None = None):
     """Build a provider client. Imported lazily so offline use needs no SDK."""
     from .providers import get_provider as _get_provider
 

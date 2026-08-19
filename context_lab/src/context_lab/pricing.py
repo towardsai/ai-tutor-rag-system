@@ -1,10 +1,13 @@
 """Per-model pricing (USD per 1M tokens) and cost estimation.
 
-Prices verified against the providers' public price pages in July 2026. When a
+Prices verified against the providers' public price pages on 2026-08-19. When a
 model is missing from the table, cost columns show ``n/a`` instead of a made-up
 number. Cached input is billed at the cache-read discount; on Gemini the
 discount comes from implicit caching, on DeepSeek from automatic prefix
 caching. Local Ollama models cost $0.
+
+Model prices move, and they move in the direction that changes this lab's
+answer. Re-check the two price pages before quoting any cost number here.
 """
 
 from __future__ import annotations
@@ -21,12 +24,16 @@ class ModelPricing:
 
 MODEL_PRICING: dict[str, ModelPricing] = {
     # Gemini API, standard paid tier (ai.google.dev/gemini-api/docs/pricing,
-    # checked 2026-07): $0.30 in / $2.50 out / $0.03 cached.
+    # re-checked 2026-08-19). Both flash tiers discount cached input 10x.
     "gemini-3.5-flash-lite": ModelPricing(input=0.30, output=2.50, cache_read=0.03),
     "gemini-3.5-flash": ModelPricing(input=1.50, output=9.00, cache_read=0.15),
-    # DeepSeek first-party API (api-docs.deepseek.com pricing, checked 2026-07):
-    # $0.14 cache-miss / $0.28 out / $0.0028 cache-hit (the ~50x discount).
-    "deepseek-v4-flash": ModelPricing(input=0.14, output=0.28, cache_read=0.0028),
+    # DeepSeek first-party API (api-docs.deepseek.com pricing, re-checked
+    # 2026-08-19). DeepSeek bills two rates by clock: peak is 01:00-04:00 and
+    # 06:00-10:00 UTC ($0.44 miss / $1.32 out / $0.014 hit) and off-peak is half
+    # of that. A run straddles both, so the table carries the 7-peak/17-off-peak
+    # blended average: $0.2842 miss / $0.8525 out / $0.00904 hit, a ~31x cache
+    # discount. Cost rows are therefore an average-price estimate, not a bill.
+    "deepseek-v4-flash": ModelPricing(input=0.2842, output=0.8525, cache_read=0.00904),
 }
 
 

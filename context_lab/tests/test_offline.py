@@ -158,6 +158,37 @@ def test_full_history_remembers_more_than_summarize(prerun, record):
     assert passes("full_history") > passes("summarize")
 
 
+def test_full_history_is_cheaper_than_summarize(prerun):
+    """The cost half of the headline, reproduced from the shipped bundle.
+
+    This only holds while the shipped run comes from a provider that reports
+    prefix-cache hits and discounts them steeply. If a future re-run moves the
+    bundle to a provider without cache accounting, this test is supposed to
+    fail rather than quietly ship a lesson whose numbers no longer match.
+    """
+
+    def session_cost(name):
+        run_dir = next(d for d in prerun if d.name == name)
+        bundles = load_bundles(run_dir)
+        return sum(
+            (b["est_cost_usd"] or 0) + (b["est_summary_cost_usd"] or 0)
+            for b in bundles
+        )
+
+    def cache_hit_ratio(name):
+        run_dir = next(d for d in prerun if d.name == name)
+        bundles = load_bundles(run_dir)
+        billed = sum(b["usage"]["input_tokens"] for b in bundles)
+        cached = sum(b["usage"]["cached_input_tokens"] or 0 for b in bundles)
+        return cached / billed
+
+    # Keeping everything sends far more tokens and still costs less, because
+    # almost all of them are billed at the cache-read rate.
+    assert cache_hit_ratio("full_history") > 0.8
+    assert cache_hit_ratio("summarize") < cache_hit_ratio("full_history")
+    assert session_cost("full_history") < session_cost("summarize")
+
+
 # --- reporting -------------------------------------------------------------
 
 
@@ -202,6 +233,75 @@ def test_split_for_summary_cuts_on_a_user_boundary():
 
 def test_approx_tokens_is_only_used_for_triggers():
     assert approx_tokens("x" * 400) == 100
+
+
+def test_report_widens_precision_for_sub_millidollar_costs():
+    """$0.0005 against $0.0008 hides the difference the cost row is for."""
+    from context_lab.report import _fmt_usd
+
+    assert _fmt_usd(0.000510) == "$0.000510"
+    assert _fmt_usd(0.0136) == "$0.0136"
+    assert _fmt_usd(None) == "n/a"
+
+
+def _mock_openai_compat(payload: dict):
+    """An OpenAICompatProvider wired to a canned response, no network."""
+    import httpx
+
+    from context_lab.providers import OpenAICompatProvider
+
+    provider = OpenAICompatProvider(
+        base_url="https://example.invalid", model="m", api_key=None, name="mock"
+    )
+    provider._client = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+    )
+    return provider
+
+
+def test_openai_compat_reads_prefix_cache_hits():
+    provider = _mock_openai_compat(
+        {
+            "model": "m",
+            "choices": [{"message": {"content": "hi"}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": 900,
+                "completion_tokens": 10,
+                "prompt_cache_hit_tokens": 768,
+            },
+        }
+    )
+    result = provider.generate("sys", [{"role": "user", "text": "q"}])
+    assert result.usage["cached_input_tokens"] == 768
+    # No cache field at all stays None, never 0. Ollama lands here.
+    plain = _mock_openai_compat(
+        {
+            "model": "m",
+            "choices": [{"message": {"content": "hi"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 900, "completion_tokens": 10},
+        }
+    )
+    assert plain.generate("sys", [{"role": "user", "text": "q"}]).usage[
+        "cached_input_tokens"
+    ] is None
+
+
+def test_openai_compat_rejects_a_reasoning_only_response():
+    """Hidden reasoning eating the output budget is an error, not a bad answer."""
+    provider = _mock_openai_compat(
+        {
+            "model": "m",
+            "choices": [
+                {
+                    "message": {"content": "", "reasoning_content": "thinking..."},
+                    "finish_reason": "length",
+                }
+            ],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 1024},
+        }
+    )
+    with pytest.raises(RuntimeError, match="reasoning but no answer"):
+        provider.generate("sys", [{"role": "user", "text": "q"}])
 
 
 # --- the runner, with a stub provider (still no API key) -------------------
