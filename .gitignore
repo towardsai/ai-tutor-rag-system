@@ -163,6 +163,7 @@ cython_debug/
 
 .vscode/
 notebooks/mini-llama-articles/
+notebooks/ai-docs/
 .huggingface
 
 .DS_Store
