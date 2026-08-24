@@ -172,3 +172,17 @@ notebooks/mini-llama-articles/
 *.jsonl
 *.html
 *.mdx
+
+# Prebuilt vector stores (built by scripts/build_vector_store.py; distributed as zips, never committed)
+notebooks/prebuilt_stores_v0/
+notebooks/prebuilt_stores_extracted/
+notebooks/*-chroma/
+*.zip
+
+# notebooks/: track only the notebooks themselves, ignore every input/output
+# artifact they read or write (datasets, vector stores, media, scripts, caches)
+notebooks/*
+!notebooks/*.ipynb
+!notebooks/archive/
+!notebooks/archive/*.ipynb
+TAI_AITUTOR_PORT_REPORT.md

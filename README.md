@@ -10,8 +10,16 @@ You can find all the course notebooks in the [notebooks](./notebooks) directory.
 
 You have two options for running the code in these notebooks:
 
-1. **Run Locally**: You can clone the repository and run the notebooks on your local machine. To do this, ensure you have a Python installation with the necessary dependencies.
-2. **Run on Google Colab**: Each notebook includes a link at the top to open it directly in Google Colab, making it easy to run without local setup.
+1. **Run Locally**: You can clone the repository and run the notebooks on your local machine. Install the dependencies once from [`requirements.txt`](./requirements.txt) — the notebooks' setup cells expect them to already be present outside Colab:
+
+   ```bash
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   python -m playwright install --with-deps chromium   # crawling lesson only
+   ```
+
+   Keys are read from a `.env` file at the repository root.
+2. **Run on Google Colab**: Each notebook includes a link at the top to open it directly in Google Colab, making it easy to run without local setup. The setup cell installs that notebook's pinned dependencies for you and reads keys from the Colab Secrets tab.
 
 ## About This Repository
 
